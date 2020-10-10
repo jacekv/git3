@@ -3,13 +3,18 @@ pragma solidity ^0.6.0;
 import "github.com/OpenZeppelin/openzeppelin-solidity/contracts/access/Ownable.sol";
 
 contract GitFactory is Ownable {
-    GitRepository[] public GitRepositories;
+    //GitRepository[] public GitRepositories;
+    mapping(string => GitRepository) public gitRepositories;
+    event CreatedNewRepository(string Name, GitRepository Address);
     
     constructor() public Ownable() {}
     
     function createRepository(string memory name) public {
         GitRepository newGitRepo = new GitRepository(name, msg.sender);
-        GitRepositories.push(newGitRepo);
+        //GitRepositories.push(newGitRepo);
+        gitRepositories[name] = newGitRepo;
+        emit CreatedNewRepository(name, newGitRepo);
+        
     }
 }
 
