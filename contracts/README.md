@@ -1,1 +1,2 @@
-Address of contract in Matic Network: 0x1b1c14Aa32059BB19f753698bD2ac1123B74489f
+Address of contract in Matic Network: 
+0xCE384Db8e2297613B337750cd2F3Cbbf4A40d3aE

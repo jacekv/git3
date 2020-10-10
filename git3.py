@@ -4,6 +4,8 @@ Read the story here: http://benhoyt.com/writings/pygit/
 
 Released under a permissive MIT license (see LICENSE.txt).
 """
+from web3 import Web3
+from getpass import getpass
 
 import argparse, collections, difflib, enum, hashlib, operator, os, stat
 import struct, sys, time, urllib.request, zlib
@@ -15,6 +17,268 @@ IndexEntry = collections.namedtuple('IndexEntry', [
     'ctime_s', 'ctime_n', 'mtime_s', 'mtime_n', 'dev', 'ino', 'mode', 'uid',
     'gid', 'size', 'sha1', 'flags', 'path',
 ])
+
+RPC_ADDRESS = 'https://rpc-mumbai.matic.today'
+GIT_FACTORY_ADDRESS = '0xCE384Db8e2297613B337750cd2F3Cbbf4A40d3aE'
+USER_ADDRESS = '0xeC41371D14F7be781301FdD2B39556e7F353D201'
+IPFS_CONNECTION = '/ip4/127.0.0.1/tcp/5001'
+FACTORY_ABI = '''
+[
+	{
+		"inputs": [],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "Name",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"internalType": "contract GitRepository",
+				"name": "Address",
+				"type": "address"
+			}
+		],
+		"name": "CreatedNewRepository",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "previousOwner",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "newOwner",
+				"type": "address"
+			}
+		],
+		"name": "OwnershipTransferred",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "name",
+				"type": "string"
+			}
+		],
+		"name": "createRepository",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			}
+		],
+		"name": "gitRepositories",
+		"outputs": [
+			{
+				"internalType": "contract GitRepository",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "owner",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "renounceOwnership",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "newOwner",
+				"type": "address"
+			}
+		],
+		"name": "transferOwnership",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	}
+]
+'''
+
+
+REPOSITORY_ABI = '''
+[
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "name",
+				"type": "string"
+			},
+			{
+				"internalType": "address",
+				"name": "owner",
+				"type": "address"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "previousOwner",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "newOwner",
+				"type": "address"
+			}
+		],
+		"name": "OwnershipTransferred",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "newCid",
+				"type": "string"
+			}
+		],
+		"name": "push",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "renounceOwnership",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "newOwner",
+				"type": "address"
+			}
+		],
+		"name": "transferOwnership",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "cidHistory",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getCidHistory",
+		"outputs": [
+			{
+				"internalType": "string[]",
+				"name": "",
+				"type": "string[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "headCid",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "owner",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "repoName",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+]
+'''
 
 
 class ObjectType(enum.Enum):
@@ -41,6 +305,7 @@ def write_file(path, data):
 def init(repo):
     """Create directory for repo and initialize .git directory."""
     os.mkdir(repo)
+    #TODO: Create name folder in .git with the name of the repo
     os.mkdir(os.path.join(repo, '.git'))
     for name in ['objects', 'refs', 'refs/heads']:
         os.mkdir(os.path.join(repo, '.git', name))
@@ -126,6 +391,73 @@ def cat_file(mode, sha1_prefix):
     else:
         raise ValueError('unexpected mode {!r}'.format(mode))
 
+def create():
+    git_factory = get_factory_contract()
+    repo_name = read_repo_name()
+    w3 = get_web3_provider()
+    if repo_name == '':
+        print('There is no repository name.')
+        return
+    #TODO: calc address from piv key :)
+    nonce = w3.eth.getTransactionCount(USER_ADDRESS)
+    priv_key= bytes.fromhex(getpass('Provide priv key: '))
+    create_repo_tx = git_factory.functions.createRepository(repo_name).buildTransaction({
+        'chainId': 80001,
+        'gas': 746427,
+        'gasPrice': w3.toWei('1', 'gwei'),
+        'nonce': nonce,
+    })
+    signed_txn = w3.eth.account.sign_transaction(create_repo_tx, private_key=priv_key)
+    tx_hash = w3.eth.sendRawTransaction(signed_txn.rawTransaction)
+    receipt = w3.eth.waitForTransactionReceipt(tx_hash)
+    if receipt['status']:
+        print('Repository {:s} has been created'.format(repo_name))
+    else:
+        print('Creating {:s} repository failed'.format(repo_name))
+        #print(receipt)
+
+def get_web3_provider():
+    return Web3(Web3.HTTPProvider(RPC_ADDRESS))
+
+def get_remote_cid():
+    git_factory = get_factory_contract()
+    repo_name = read_repo_name()
+    git_repo_address = git_factory.functions.gitRepositories(repo_name).call()
+    repo_contract = get_repository_contract(git_repo_address)
+    return repo_contract.functions.headCid().call()
+
+def get_factory_contract():
+    w3 = get_web3_provider()
+    return w3.eth.contract(address=GIT_FACTORY_ADDRESS, abi=FACTORY_ABI)
+
+def get_repository_contract(address):
+    w3 = get_web3_provider()
+    return w3.eth.contract(address=address, abi=REPOSITORY_ABI)
+
+def check_if_repo_created():
+    """
+    Checks if the repository has been already registered in the gitFactory contract
+    If it hasn't, False is returned, otherwise True
+    """
+    repo_name = read_repo_name()
+    w3 = get_web3_provider()
+    if not w3.isConnected():
+        #TODO Throw an exception
+        print('No connection. Establish a connection first')
+        return False
+    gitFactory = get_factory_contract()
+    address = gitFactory.functions.gitRepositories(repo_name).call()
+    if address == '0x0000000000000000000000000000000000000000':
+        return False
+    return True
+        
+def read_repo_name():
+    """Read the repoName file and return the name"""
+    try:
+        data = read_file(os.path.join('.git', 'name'))
+    except FileNotFoundError:
+        return ""
+    return data.rstrip().decode('ascii')
 
 def read_index():
     """Read git index file and return list of IndexEntry objects."""
@@ -476,8 +808,11 @@ def create_pack(objects):
     return data
 
 
-def push(git_url, username=None, password=None):
+def push(git_url): #, username=None, password=None):
     """Push master branch to given git repo URL."""
+    if not check_if_repo_created():
+        print('Repository has not been registered yet. Use\n\n`git create`\n\nbefore you push')
+        return
     entries = read_index()
     files_to_push = []
     for entry in entries:
@@ -506,19 +841,26 @@ def push(git_url, username=None, password=None):
                # TODO: do we need to delete the dirs at the source so that they won't get uploaded to ipfs?
     print('All files in repo', all_files_in_repo)
     print('All files to move', all_files_to_move)
-    #input('>>>')
     # IPFS STUFF START
-    client = ipfshttpclient.connect('/dns/ipfs.io/tcp/443/https')
-    res = client.add('hello.txt')
-    print('RES', res)
+    remote_cid = get_remote_cid()
+    client = ipfshttpclient.connect(IPFS_CONNECTION)
+    #here we are just getting the hash before pushing it to ipfs
+    #before we push it to ipfs we will check if there is a contract
+    #and if the CID's are differnt. If they are the same
+    #we don't need to push
+    res = client.add('.', recursive=True, only_hash=True)
+    print(res[-1]['Hash'])
     client.close()
     # IPFS STUFF STOP
+    # we are pushing if remote
+    if remote_cid == '' or res[-1]['Hash'] != remote_cid:
+        print('Yay')    
     for file in all_files_to_move:
         #print(file)
         # copying the files back to their source :)
         shutil.move('/tmp/' + file[2:], file[2:])
         # TODO: Do we need to remove the dirs? Should do that I guess
-
+        
     ### ORIGINAL CODE
     #if username is None:
     #    username = os.environ['GIT_USERNAME']
@@ -555,14 +897,14 @@ if __name__ == '__main__':
     sub_parser.add_argument('paths', nargs='+', metavar='path',
             help='path(s) of files to add')
 
-    sub_parser = sub_parsers.add_parser('cat-file',
-            help='display contents of object')
-    valid_modes = ['commit', 'tree', 'blob', 'size', 'type', 'pretty']
-    sub_parser.add_argument('mode', choices=valid_modes,
-            help='object type (commit, tree, blob) or display mode (size, '
-                 'type, pretty)')
-    sub_parser.add_argument('hash_prefix',
-            help='SHA-1 hash (or hash prefix) of object to display')
+    #sub_parser = sub_parsers.add_parser('cat-file',
+            #help='display contents of object')
+    #valid_modes = ['commit', 'tree', 'blob', 'size', 'type', 'pretty']
+    #sub_parser.add_argument('mode', choices=valid_modes,
+            #help='object type (commit, tree, blob) or display mode (size, '
+                 #'type, pretty)')
+    #sub_parser.add_argument('hash_prefix',
+            #help='SHA-1 hash (or hash prefix) of object to display')
 
     sub_parser = sub_parsers.add_parser('commit',
             help='commit current state of index to master branch')
@@ -573,42 +915,45 @@ if __name__ == '__main__':
     sub_parser.add_argument('-m', '--message', required=True,
             help='text of commit message')
 
-    sub_parser = sub_parsers.add_parser('diff',
-            help='show diff of files changed (between index and working '
-                 'copy)')
+    sub_parser = sub_parsers.add_parser('create',
+            help='create your remote repository')
+    
+    #sub_parser = sub_parsers.add_parser('diff',
+            #help='show diff of files changed (between index and working '
+                 #'copy)')
 
-    sub_parser = sub_parsers.add_parser('hash-object',
-            help='hash contents of given path (and optionally write to '
-                 'object store)')
-    sub_parser.add_argument('path',
-            help='path of file to hash')
-    sub_parser.add_argument('-t', choices=['commit', 'tree', 'blob'],
-            default='blob', dest='type',
-            help='type of object (default %(default)r)')
-    sub_parser.add_argument('-w', action='store_true', dest='write',
-            help='write object to object store (as well as printing hash)')
+    #sub_parser = sub_parsers.add_parser('hash-object',
+            #help='hash contents of given path (and optionally write to '
+                 #'object store)')
+    #sub_parser.add_argument('path',
+            #help='path of file to hash')
+    #sub_parser.add_argument('-t', choices=['commit', 'tree', 'blob'],
+            #default='blob', dest='type',
+            #help='type of object (default %(default)r)')
+    #sub_parser.add_argument('-w', action='store_true', dest='write',
+            #help='write object to object store (as well as printing hash)')
 
     sub_parser = sub_parsers.add_parser('init',
             help='initialize a new repo')
     sub_parser.add_argument('repo',
             help='directory name for new repo')
 
-    sub_parser = sub_parsers.add_parser('ls-files',
-            help='list files in index')
-    sub_parser.add_argument('-s', '--stage', action='store_true',
-            help='show object details (mode, hash, and stage number) in '
-                 'addition to path')
+    #sub_parser = sub_parsers.add_parser('ls-files',
+            #help='list files in index')
+    #sub_parser.add_argument('-s', '--stage', action='store_true',
+            #help='show object details (mode, hash, and stage number) in '
+                 #'addition to path')
 
     sub_parser = sub_parsers.add_parser('push',
             help='push master branch to given git server URL')
     sub_parser.add_argument('git_url',
             help='URL of git repo, eg: https://github.com/benhoyt/pygit.git')
-    sub_parser.add_argument('-p', '--password',
-            help='password to use for authentication (uses GIT_PASSWORD '
-                 'environment variable by default)')
-    sub_parser.add_argument('-u', '--username',
-            help='username to use for authentication (uses GIT_USERNAME '
-                 'environment variable by default)')
+    #sub_parser.add_argument('-p', '--password',
+            #help='password to use for authentication (uses GIT_PASSWORD '
+                 #'environment variable by default)')
+    #sub_parser.add_argument('-u', '--username',
+            #help='username to use for authentication (uses GIT_USERNAME '
+                 #'environment variable by default)')
 
     sub_parser = sub_parsers.add_parser('status',
             help='show status of working copy')
@@ -624,6 +969,8 @@ if __name__ == '__main__':
             sys.exit(1)
     elif args.command == 'commit':
         commit(args.message, author=args.author)
+    elif args.command == 'create':
+        create()
     elif args.command == 'diff':
         diff()
     elif args.command == 'hash-object':
@@ -634,7 +981,7 @@ if __name__ == '__main__':
     elif args.command == 'ls-files':
         ls_files(details=args.stage)
     elif args.command == 'push':
-        push(args.git_url, username=args.username, password=args.password)
+        push(args.git_url)#, username=args.username, password=args.password)
     elif args.command == 'status':
         status()
     else:
