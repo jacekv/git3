@@ -9,6 +9,7 @@ contract GitFactory is Ownable {
         bool isSet;
     }
     
+    
     mapping(string => Repo) public gitRepositories;
     
     event CreatedNewRepository(string Name, GitRepository Address);
@@ -25,12 +26,16 @@ contract GitFactory is Ownable {
 }
 
 contract GitRepository is Ownable {
+    event NewPush(string Cid);
+    
     // repository name
     string public repoName;
-    
     string[] public cidHistory;
     // cid to newest repo
     string public headCid;
+    
+    mapping(string => bool) public pushHistory;
+    
     
     constructor (string memory name, address owner) public Ownable() {
         repoName = name;
@@ -38,10 +43,12 @@ contract GitRepository is Ownable {
     }
     
     function push(string memory newCid) public onlyOwner {
-        if (bytes(headCid).length != 0) {
-            cidHistory.push(headCid);
+        if (pushHistory[newCid] == false) {
+            pushHistory[newCid] = true;
+            cidHistory.push(newCid);
+            headCid = newCid;
+            emit NewPush(newCid);
         }
-        headCid = newCid;
     }
     
     function getCidHistory() public view returns (string[] memory) {

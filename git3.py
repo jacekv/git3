@@ -19,7 +19,7 @@ IndexEntry = collections.namedtuple('IndexEntry', [
 ])
 
 RPC_ADDRESS = 'https://rpc-mumbai.matic.today'
-GIT_FACTORY_ADDRESS = '0xCE384Db8e2297613B337750cd2F3Cbbf4A40d3aE'
+GIT_FACTORY_ADDRESS = '0xE22C433F6AA86fb5262a64365AEEa17e897E7A9b'
 USER_ADDRESS = '0xeC41371D14F7be781301FdD2B39556e7F353D201'
 IPFS_CONNECTION = '/ip4/127.0.0.1/tcp/5001'
 FACTORY_ABI = '''
@@ -400,10 +400,11 @@ def create():
         return
     #TODO: calc address from piv key :)
     nonce = w3.eth.getTransactionCount(USER_ADDRESS)
-    priv_key= bytes.fromhex(getpass('Provide priv key: '))
+    #priv_key= bytes.fromhex(getpass('Provide priv key: '))
+    priv_key = bytes.fromhex(os.environ['PRIV_KEY'])
     create_repo_tx = git_factory.functions.createRepository(repo_name).buildTransaction({
         'chainId': 80001,
-        'gas': 746427,
+        'gas': 947750,
         'gasPrice': w3.toWei('1', 'gwei'),
         'nonce': nonce,
     })
@@ -414,18 +415,57 @@ def create():
         print('Repository {:s} has been created'.format(repo_name))
     else:
         print('Creating {:s} repository failed'.format(repo_name))
-        #print(receipt)
+        print(receipt)
 
 def get_web3_provider():
     return Web3(Web3.HTTPProvider(RPC_ADDRESS))
 
-def get_remote_cid():
+def get_remote_cid_history():
     git_factory = get_factory_contract()
     repo_name = read_repo_name()
     git_repo_address = git_factory.functions.gitRepositories(repo_name).call()
     repo_contract = get_repository_contract(git_repo_address)
-    return repo_contract.functions.headCid().call()
+    return repo_contract.functions.getCidHistory().call()
 
+def push_new_cid(cid):
+    git_factory = get_factory_contract()
+    repo_name = read_repo_name()
+    git_repo_address = git_factory.functions.gitRepositories(repo_name).call()
+    repo_contract = get_repository_contract(git_repo_address)
+    
+    w3 = get_web3_provider()
+    nonce = w3.eth.getTransactionCount(USER_ADDRESS)
+    #priv_key= bytes.fromhex(getpass('Provide priv key: '))
+    priv_key = bytes.fromhex(os.environ['PRIV_KEY'])
+    create_push_tx = repo_contract.functions.push(cid).buildTransaction({
+        'chainId': 80001,
+        'gas': 746427,
+        'gasPrice': w3.toWei('1', 'gwei'),
+        'nonce': nonce,
+    })
+    signed_txn = w3.eth.account.sign_transaction(create_push_tx, private_key=priv_key)
+    tx_hash = w3.eth.sendRawTransaction(signed_txn.rawTransaction)
+    receipt = w3.eth.waitForTransactionReceipt(tx_hash)
+    if receipt['status']:
+        print('Successfully pushed')
+    else:
+        print('Pushing failed')
+
+def clone(repo_name):
+    git_factory = get_factory_contract()
+    git_repo_address = git_factory.functions.gitRepositories(repo_name).call()
+    if git_repo_address == '0x0000000000000000000000000000000000000000':
+        print('No such repository')
+        return
+    repo_contract = get_repository_contract(git_repo_address)
+    headCid = repo_contract.functions.headCid().call()
+    print('Cloning {:s}'.format(repo_name))
+    client = ipfshttpclient.connect(IPFS_CONNECTION)
+    client.get(headCid)
+    os.rename(headCid, repo_name)
+    client.close()
+    print('{:s} cloned'.format(repo_name))
+    
 def get_factory_contract():
     w3 = get_web3_provider()
     return w3.eth.contract(address=GIT_FACTORY_ADDRESS, abi=FACTORY_ABI)
@@ -583,9 +623,7 @@ def add(paths):
     """Add all file paths to git index."""
     paths = [p.replace('\\', '/') for p in paths]
     all_entries = read_index()
-    print('All entries', all_entries)
     entries = [e for e in all_entries if e.path not in paths]
-    print(paths)
     for path in paths:
         # we are adding ./ to the path, to make it during the 
         # push easier to compare paths
@@ -601,7 +639,6 @@ def add(paths):
                 bytes.fromhex(sha1), flags, path)
         entries.append(entry)
     entries.sort(key=operator.attrgetter('path'))
-    print('New entries for index', entries)
     write_index(entries)
 
 
@@ -816,10 +853,10 @@ def push(git_url): #, username=None, password=None):
     entries = read_index()
     files_to_push = []
     for entry in entries:
+        print(entry)
         files_to_push.append(entry.path)
         #print('Path to file:', entry.path)
     print('Files to push', files_to_push)
-    print('git_url', git_url)
     all_files_in_repo = []
     all_files_to_move = []
     for path, subdirs, files in os.walk('.'):
@@ -842,19 +879,23 @@ def push(git_url): #, username=None, password=None):
     print('All files in repo', all_files_in_repo)
     print('All files to move', all_files_to_move)
     # IPFS STUFF START
-    remote_cid = get_remote_cid()
+    remote_cid_history = get_remote_cid_history()
+    repo_name = read_repo_name()
     client = ipfshttpclient.connect(IPFS_CONNECTION)
     #here we are just getting the hash before pushing it to ipfs
     #before we push it to ipfs we will check if there is a contract
     #and if the CID's are differnt. If they are the same
     #we don't need to push
-    res = client.add('.', recursive=True, only_hash=True)
-    print(res[-1]['Hash'])
+    res = client.add('../{:s}'.format(repo_name), recursive=True, only_hash=True)
     client.close()
     # IPFS STUFF STOP
     # we are pushing if remote
-    if remote_cid == '' or res[-1]['Hash'] != remote_cid:
-        print('Yay')    
+    if res[-1]['Hash'] not in remote_cid_history:
+        print('Pushing content')
+        res = client.add('../{:s}'.format(repo_name), recursive=True)
+        push_new_cid(res[-1]['Hash'])
+    else:
+        print('There is nothing to push')
     for file in all_files_to_move:
         #print(file)
         # copying the files back to their source :)
@@ -918,6 +959,10 @@ if __name__ == '__main__':
     sub_parser = sub_parsers.add_parser('create',
             help='create your remote repository')
     
+    sub_parser = sub_parsers.add_parser('clone',
+            help='create your remote repository')    
+    sub_parser.add_argument('name',
+            help='name of repository to clone')    
     #sub_parser = sub_parsers.add_parser('diff',
             #help='show diff of files changed (between index and working '
                  #'copy)')
@@ -971,6 +1016,8 @@ if __name__ == '__main__':
         commit(args.message, author=args.author)
     elif args.command == 'create':
         create()
+    elif args.command == 'clone':
+        clone(args.name)
     elif args.command == 'diff':
         diff()
     elif args.command == 'hash-object':
