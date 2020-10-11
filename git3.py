@@ -627,8 +627,8 @@ def add(paths):
     for path in paths:
         # we are adding ./ to the path, to make it during the 
         # push easier to compare paths
-        if not path.startswith('./'):
-            path = './' + path
+        #if not path.startswith('./'):
+        #    path = './' + path
         sha1 = hash_object(read_file(path), 'blob')
         st = os.stat(path)
         flags = len(path.encode())
@@ -846,11 +846,12 @@ def create_pack(objects):
 
 
 def push(git_url): #, username=None, password=None):
-    """Push master branch to given git repo URL."""
+    """Push master branch to given git repo URL.""" 
     if not check_if_repo_created():
         print('Repository has not been registered yet. Use\n\n`git create`\n\nbefore you push')
         return
     entries = read_index()
+    print('Entries', read_index)
     files_to_push = []
     for entry in entries:
         print(entry)
