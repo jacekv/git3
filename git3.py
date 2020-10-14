@@ -404,8 +404,8 @@ def create():
     priv_key = bytes.fromhex(os.environ['PRIV_KEY'])
     create_repo_tx = git_factory.functions.createRepository(repo_name).buildTransaction({
         'chainId': 80001,
-        'gas': 947750,
-        'gasPrice': w3.toWei('1', 'gwei'),
+        'gas': 1947750,
+        'gasPrice': w3.toWei('2', 'gwei'),
         'nonce': nonce,
     })
     signed_txn = w3.eth.account.sign_transaction(create_repo_tx, private_key=priv_key)

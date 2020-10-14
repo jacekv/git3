@@ -1,5 +1,5 @@
 <template>
-  <v-toolbar>
+  <v-app-bar app>
     <v-toolbar-title>Git3</v-toolbar-title>
     <v-text-field
       class='pl-6 shrink'
@@ -10,12 +10,13 @@
       @keydown.enter="searchFunction"
       v-model='search'
     ></v-text-field>
-  </v-toolbar>
+  </v-app-bar>
 </template>
 
 <script>
+import store from '../store/index';
+
 const Contract = require('web3-eth-contract');
-const ipfsClient = require('ipfs-http-client');
 const web3Config = require('../lib/web3Config.js');
 
 // // set provider for all later instances to use
@@ -40,10 +41,23 @@ export default {
         })
         .then(async (headCid) => {
           console.log('HeadCid', headCid);
-          const ipfs = ipfsClient(web3Config.IPFS_MULTIADDR);
-          console.log(ipfs);
-          const r = await ipfs.get(headCid);
-          r.next().then(console.log);
+          const response = await fetch(
+            `http://127.0.0.1:5001/api/v0/file/ls?arg=${headCid}`,
+            {
+              method: 'POST',
+            },
+          );
+          const data = await response.json();
+          const files = [];
+          data.Objects[headCid].Links.forEach((entry) => {
+            console.log(entry.Name);
+            files.push({
+              name: entry.Name,
+              type: entry.Type,
+            });
+          });
+          store.commit('updateFileList', files);
+          store.commit('updateRepoName', this.search);
         });
     },
   },
