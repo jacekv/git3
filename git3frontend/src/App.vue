@@ -23,9 +23,7 @@
 import NavigationBar from './components/NavigationBar.vue';
 import FileExplorer from './components/FileExplorer.vue';
 import RepositoryHeader from './components/RepositoryHeader.vue';
-import store from './store/index';
 
-console.log(store.getters);
 export default {
   name: 'App',
 

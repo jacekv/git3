@@ -54,5 +54,6 @@ contract GitRepository is Ownable {
     function getCidHistory() public view returns (string[] memory) {
         return cidHistory;
     }
+    
+    receive () external payable {}
 }
-

@@ -10,12 +10,17 @@
       @keydown.enter="searchFunction"
       v-model='search'
     ></v-text-field>
+    <v-spacer/>
+    <v-btn rounded @click='connectMetaMask'>
+      {{ buttonText }}
+    </v-btn>
   </v-app-bar>
 </template>
 
 <script>
 import store from '../store/index';
 
+// const Web3 = require('web3');
 const Contract = require('web3-eth-contract');
 const web3Config = require('../lib/web3Config.js');
 
@@ -29,18 +34,17 @@ export default {
   data() {
     return {
       search: '',
+      buttonText: 'Connect to MetaMask',
     };
   },
   methods: {
     searchFunction() {
       gitFactory.methods.gitRepositories(this.search).call()
         .then((address) => {
-          console.log('Address of repo', address);
           const repoContract = new Contract(web3Config.REPOSITORY_INTERFACE, address);
           return repoContract.methods.headCid().call();
         })
         .then(async (headCid) => {
-          console.log('HeadCid', headCid);
           const response = await fetch(
             `http://127.0.0.1:5001/api/v0/file/ls?arg=${headCid}`,
             {
@@ -59,6 +63,32 @@ export default {
           store.commit('updateFileList', files);
           store.commit('updateRepoName', this.search);
         });
+    },
+    async connectMetaMask() {
+      let accounts = [];
+      try {
+        accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      } catch (e) {
+        console.log('User rejects MetaMask connection');
+      }
+      if (accounts.length === 0) return;
+      store.commit('updateMetaMaskConnectionStatus', true);
+      [this.buttonText] = accounts;
+      this.buttonText = `${this.buttonText.substring(0, 6)}..${this.buttonText.substring(37)}`;
+      const { networkVersion } = window.ethereum;
+      if (networkVersion === '80001') {
+        this.$web3.setProvider(web3Config.MATIC_RPC);
+      } else if (networkVersion === '5') {
+        this.$web3.setProvider(web3Config.GOERLI_RPC);
+      }
+      window.ethereum.on('chainChanged', (_chainId) => {
+        // hander when the user changes the network
+        if (_chainId === '0x13881') {
+          this.$web3.setProvider(web3Config.MATIC_RPC);
+        } else if (_chainId === '0x5') {
+          this.$web3.setProvider(web3Config.GOERLI_RPC);
+        }
+      });
     },
   },
 };

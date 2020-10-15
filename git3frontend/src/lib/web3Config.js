@@ -1,5 +1,5 @@
 module.exports = {
-  GIT_FACTORY_ADDRESS: '0xE22C433F6AA86fb5262a64365AEEa17e897E7A9b',
+  GIT_FACTORY_ADDRESS: '0xF7203a98AB9Ea8A96e165118A7BDc6470400b0c0',
   RPC_ADDRESS: 'https://rpc-mumbai.matic.today',
   GIT_FACTORY_INTERFACE: [
     {
@@ -256,4 +256,6 @@ module.exports = {
     },
   ],
   IPFS_MULTIADDR: '/ip4/127.0.0.1/tcp/5001',
+  MATIC_RPC: 'https://rpc-mumbai.matic.today',
+  GOERLI_RPC: 'https://goerli.infura.io/v3/4f889bc2be4043a3ba09b0ae06c148cd',
 };
