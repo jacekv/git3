@@ -1,12 +1,6 @@
 <template>
   <v-simple-table>
     <template v-slot:default>
-      <thead>
-        <tr>
-          <th class="text-left" style='width: 20px'>Type</th>
-          <th class="text-left">Name</th>
-        </tr>
-      </thead>
       <tbody>
         <tr v-for="item in files" :key="item.name">
           <td style='width: 20px'>
@@ -24,7 +18,7 @@
 import store from '../store/index';
 
 export default {
-  name: 'FileExplorer',
+  name: 'IssueList',
 
   data() {
     return {
