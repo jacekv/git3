@@ -54,7 +54,6 @@ export default {
           const data = await response.json();
           const files = [];
           data.Objects[headCid].Links.forEach((entry) => {
-            console.log(entry.Name);
             files.push({
               name: entry.Name,
               type: entry.Type,

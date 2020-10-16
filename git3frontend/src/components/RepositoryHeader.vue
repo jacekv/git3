@@ -5,7 +5,7 @@
     <v-dialog
       v-model="dialog"
       width="300"
-      v-if="newRepoName != 'Repository Name' && metamaskConnected"
+      v-if="newRepoName != 'Repository Name' && metamaskConnected && !pendingTx"
     >
       <template v-slot:activator="{ on: dialog }">
         <v-tooltip right>
@@ -52,6 +52,19 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+    <v-progress-circular
+      indeterminate
+      color="amber"
+      class='ml-4'
+      v-else-if='pendingTx'
+    ></v-progress-circular>
+    <v-spacer></v-spacer>
+    <v-btn depressed :outlined='showCode' @click='enableCode'>
+      /code
+    </v-btn>
+    <v-btn depressed :outlined='showIssues' @click='enableIssues'>
+      /issues
+    </v-btn>
   </v-app-bar>
 </template>
 
@@ -67,12 +80,6 @@ function Sleep(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
-async function textTx() {
-  console.log('The hell');
-  await Sleep(5000);
-  console.log('The hell');
-}
-
 export default {
   name: 'RepositoryHeader',
   data() {
@@ -80,11 +87,14 @@ export default {
       dialog: false,
       eth: 0,
       tip: 0,
+      pendingTx: false,
     };
   },
   computed: {
     newRepoName: () => store.getters.getRepoName,
     metamaskConnected: () => store.getters.isMetaMaskConnected,
+    showCode: () => store.getters.showCode,
+    showIssues: () => store.getters.showIssues,
   },
   methods: {
     async getBalance() {
@@ -97,11 +107,27 @@ export default {
         });
     },
     tipping() {
-      console.log('Time to tip the repo');
-      console.log((this.tip * 1000000000000000000).toString());
       gitFactory.methods.gitRepositories(store.getters.getRepoName).call()
         .then((address) => {
-          console.log('Repository address', address);
+          console.log(address);
+          // const { networkVersion } = window.ethereum;
+          // if (networkVersion === '80001') {
+          //   console.log('We are on Matic :)');
+          //   return window.ethereum.request({
+          //     method: 'eth_sendTransaction',
+          //     params: [
+          //       {
+          //         from: window.ethereum.selectedAddress,
+          //         to: address,
+          //         value: (this.tip * 1000000000000000000).toString(16),
+          //         gasPrice: '0x12A05F2000',
+          //         gas: '21055',
+          //       },
+          //     ],
+          //   });
+          // } else if (networkVersion === '5') {
+          //   console.log('We are on Goerli :)');
+          // }
           return window.ethereum.request({
             method: 'eth_sendTransaction',
             params: [
@@ -109,19 +135,51 @@ export default {
                 from: window.ethereum.selectedAddress,
                 to: address,
                 value: (this.tip * 1000000000000000000).toString(16),
-                gasPrice: (80).toString(16),
-                gas: '21055',
+                gasPrice: '0x77359400', // 2 Gwei
+                gas: '0x523F', // 21055
               },
             ],
           });
         })
         .then((txHash) => {
-          console.log('txHash', txHash);
-          textTx();
-          console.log('Need to close the dialog and show pending tx. Like loading coffe mug');
+          this.dialog = false;
+          this.pendingTx = true;
+          this.checkTxConfirmed(txHash);
           console.log('While sending the tx, we need to distinguish between Goerli and Matic!');
         })
         .catch(() => console.error);
+    },
+    async checkTxConfirmed(txHash) {
+      console.log('Checking tx status');
+      let receipt = await this.$web3.eth.getTransactionReceipt(txHash);
+      console.log(receipt);
+      while (receipt === null) {
+        await Sleep(5000); // eslint-disable-line no-await-in-loop
+        // eslint-disable-next-line no-await-in-loop
+        receipt = await this.$web3.eth.getTransactionReceipt(txHash);
+        if (receipt !== null) {
+          if (receipt.status) {
+            console.log('Transaction has been successful');
+          } else {
+            console.log('Transaction has been reverted...');
+          }
+        } else {
+          console.log('Transaction not yet confirmed. Need to check again');
+        }
+      }
+      this.pendingTx = false; // eslint-disable-line no-param-reassign
+    },
+    enableCode() {
+      if (!store.getters.showCode) {
+        store.commit('toggleCode');
+        store.commit('toggleIssues');
+      }
+    },
+    enableIssues() {
+      if (!store.getters.showIssues) {
+        store.commit('toggleIssues');
+        store.commit('toggleCode');
+      }
     },
   },
 };

@@ -8,11 +8,15 @@ export default new Vuex.Store({
     fileList: [],
     repoName: 'Repository Name',
     metamaskConnected: false,
+    showCode: true,
+    showIssues: false,
   },
   getters: {
     getFileList: (state) => state.fileList,
     getRepoName: (state) => state.repoName,
     isMetaMaskConnected: (state) => state.metamaskConnected,
+    showCode: (state) => state.showCode,
+    showIssues: (state) => state.showIssues,
   },
   mutations: {
     updateFileList(state, files) {
@@ -25,6 +29,12 @@ export default new Vuex.Store({
     },
     updateMetaMaskConnectionStatus(state, status) {
       state.metamaskConnected = status;
+    },
+    toggleCode(state) {
+      state.showCode = !state.showCode;
+    },
+    toggleIssues(state) {
+      state.showIssues = !state.showIssues;
     },
   },
   actions: {
