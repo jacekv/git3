@@ -1,5 +1,5 @@
 module.exports = {
-  GIT_FACTORY_ADDRESS: '0xF7203a98AB9Ea8A96e165118A7BDc6470400b0c0',
+  GIT_FACTORY_ADDRESS: '0x3bFF586A6Cab36Bb87Da89df1d9578691e3328a1',
   RPC_ADDRESS: 'https://rpc-mumbai.matic.today',
   GIT_FACTORY_INTERFACE: [
     {
@@ -254,8 +254,95 @@ module.exports = {
       stateMutability: 'view',
       type: 'function',
     },
+    {
+      inputs: [
+        {
+          internalType: 'string',
+          name: '',
+          type: 'string',
+        },
+      ],
+      name: 'pushHistory',
+      outputs: [
+        {
+          internalType: 'bool',
+          name: '',
+          type: 'bool',
+        },
+      ],
+      stateMutability: 'view',
+      type: 'function',
+    },
+    {
+      anonymous: false,
+      inputs: [
+        {
+          indexed: false,
+          internalType: 'string',
+          name: 'Cid',
+          type: 'string',
+        },
+      ],
+      name: 'NewIssue',
+      type: 'event',
+    },
+    {
+      anonymous: false,
+      inputs: [
+        {
+          indexed: false,
+          internalType: 'string',
+          name: 'Cid',
+          type: 'string',
+        },
+      ],
+      name: 'NewPush',
+      type: 'event',
+    },
+    {
+      inputs: [
+        {
+          internalType: 'string',
+          name: 'cid',
+          type: 'string',
+        },
+      ],
+      name: 'openIssue',
+      outputs: [],
+      stateMutability: 'payable',
+      type: 'function',
+    },
+    {
+      stateMutability: 'payable',
+      type: 'receive',
+    },
+    {
+      inputs: [
+        {
+          internalType: 'uint256',
+          name: '',
+          type: 'uint256',
+        },
+      ],
+      name: 'issues',
+      outputs: [
+        {
+          internalType: 'string',
+          name: 'cid',
+          type: 'string',
+        },
+        {
+          internalType: 'uint256',
+          name: 'bounty',
+          type: 'uint256',
+        },
+      ],
+      stateMutability: 'view',
+      type: 'function',
+    },
   ],
   IPFS_MULTIADDR: '/ip4/127.0.0.1/tcp/5001',
+  IPFS_ADDRESS: 'http://127.0.0.1:5001',
   MATIC_RPC: 'https://rpc-mumbai.matic.today',
   GOERLI_RPC: 'https://goerli.infura.io/v3/4f889bc2be4043a3ba09b0ae06c148cd',
 };

@@ -20,7 +20,7 @@
 <script>
 import store from '../store/index';
 
-// const Web3 = require('web3');
+const Web3 = require('web3');
 const Contract = require('web3-eth-contract');
 const web3Config = require('../lib/web3Config.js');
 
@@ -46,7 +46,7 @@ export default {
         })
         .then(async (headCid) => {
           const response = await fetch(
-            `http://127.0.0.1:5001/api/v0/file/ls?arg=${headCid}`,
+            `${web3Config.IPFS_ADDRESS}/api/v0/file/ls?arg=${headCid}`,
             {
               method: 'POST',
             },
@@ -76,16 +76,16 @@ export default {
       this.buttonText = `${this.buttonText.substring(0, 6)}..${this.buttonText.substring(37)}`;
       const { networkVersion } = window.ethereum;
       if (networkVersion === '80001') {
-        this.$web3.setProvider(web3Config.MATIC_RPC);
+        this.$web3.setProvider(new Web3.providers.HttpProvider(web3Config.MATIC_RPC));
       } else if (networkVersion === '5') {
-        this.$web3.setProvider(web3Config.GOERLI_RPC);
+        this.$web3.setProvider(new Web3.providers.HttpProvider(web3Config.GOERLI_RPC));
       }
       window.ethereum.on('chainChanged', (_chainId) => {
         // hander when the user changes the network
         if (_chainId === '0x13881') {
-          this.$web3.setProvider(web3Config.MATIC_RPC);
+          this.$web3.setProvider(new Web3.providers.HttpProvider(web3Config.MATIC_RPC));
         } else if (_chainId === '0x5') {
-          this.$web3.setProvider(web3Config.GOERLI_RPC);
+          this.$web3.setProvider(new Web3.providers.HttpProvider(web3Config.GOERLI_RPC));
         }
       });
     },

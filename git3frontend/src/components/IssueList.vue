@@ -1,13 +1,18 @@
 <template>
   <v-simple-table>
     <template v-slot:default>
+      <thead>
+        <tr>
+          <th class="text-left" style='width: 80px'>Bounty (Wei)</th>
+          <th class="text-left">Title</th>
+        </tr>
+      </thead>
       <tbody>
-        <tr v-for="item in files" :key="item.name">
-          <td style='width: 20px'>
-            <v-icon v-if="item.type == 'Directory'">mdi-folder</v-icon>
-            <v-icon v-else>mdi-file</v-icon>
+        <tr v-for="item in files" :key="item.title">
+          <td style='width: 80px'>
+            {{ item.bounty }} Wei
           </td>
-          <td>{{ item.name }}</td>
+          <td>{{ item.title }}</td>
         </tr>
       </tbody>
     </template>
