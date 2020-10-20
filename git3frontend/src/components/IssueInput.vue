@@ -23,11 +23,7 @@
 <script>
 import store from '../store/index';
 
-const Contract = require('web3-eth-contract');
 const web3Config = require('../lib/web3Config.js');
-
-const gitFactory = new Contract(web3Config.GIT_FACTORY_INTERFACE,
-  web3Config.GIT_FACTORY_ADDRESS);
 
 function Sleep(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -86,13 +82,13 @@ export default {
       })
         .then((r) => r.json())
         .then(async (data) => {
-          const address = await gitFactory.methods
+          console.log(data);
+          const address = await this.$factoryContract.methods
             .gitRepositories(store.getters.getRepoName).call();
 
-          const repoContract = new this.$web3.eth.Contract(
+          const repoContract = new this.$web3Matic.eth.Contract(
             web3Config.REPOSITORY_INTERFACE, address,
           );
-
           const callData = repoContract.methods
             .openIssue(data.Cid['/'])
             .encodeABI();

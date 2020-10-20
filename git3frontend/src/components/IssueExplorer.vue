@@ -23,10 +23,11 @@ import IssueList from './IssueList.vue';
 import IssueInput from './IssueInput.vue';
 import store from '../store/index';
 
-const Contract = require('web3-eth-contract');
+// const Contract = require('web3-eth-contract');
 const web3Config = require('../lib/web3Config.js');
 
-const gitFactory = new Contract(web3Config.GIT_FACTORY_INTERFACE, web3Config.GIT_FACTORY_ADDRESS);
+// const gitFactory =
+// new Contract(web3Config.GIT_FACTORY_INTERFACE, web3Config.GIT_FACTORY_ADDRESS);
 
 export default {
   name: 'IssueExplorer',
@@ -49,9 +50,9 @@ export default {
         this.showList = true;
       } else if (value === 'openedIssue') {
         this.showList = true;
-        const address = await gitFactory.methods
+        const address = await this.$factoryContract.methods
           .gitRepositories(store.getters.getRepoName).call();
-        console.log('Address', address);
+        console.log('Address123', address);
         const repoContract = new this.$web3.eth.Contract(
           web3Config.REPOSITORY_INTERFACE, address,
         );

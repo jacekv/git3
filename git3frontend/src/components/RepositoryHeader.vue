@@ -51,8 +51,15 @@
       v-else-if="pendingTx"
     ></v-progress-circular>
     <v-spacer></v-spacer>
-    <v-btn depressed :outlined="showCode" @click="enableCode"> /code </v-btn>
-    <v-btn depressed :outlined="showIssues" @click="enableIssues">
+    <v-btn depressed v-if="repoLoaded" :outlined="showCode" @click="enableCode">
+      /code
+    </v-btn>
+    <v-btn
+      depressed
+      v-if="repoLoaded"
+      :outlined="showIssues"
+      @click="enableIssues"
+    >
       /issues
     </v-btn>
   </v-app-bar>
@@ -61,13 +68,7 @@
 <script>
 import store from '../store/index';
 
-const Contract = require('web3-eth-contract');
 const web3Config = require('../lib/web3Config.js');
-
-const gitFactory = new Contract(
-  web3Config.GIT_FACTORY_INTERFACE,
-  web3Config.GIT_FACTORY_ADDRESS,
-);
 
 function Sleep(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -88,6 +89,7 @@ export default {
     metamaskConnected: () => store.getters.isMetaMaskConnected,
     showCode: () => store.getters.showCode,
     showIssues: () => store.getters.showIssues,
+    repoLoaded: () => store.getters.getRepoName !== 'Repository Name',
   },
   methods: {
     async getBalance() {
@@ -95,16 +97,14 @@ export default {
         window.ethereum.selectedAddress,
       );
       this.eth = wei / 1000000000000000000;
-      fetch(
-        'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=ethereum',
-      )
+      fetch(web3Config.COINGECKO_URL)
         .then((response) => response.json())
         .then((data) => {
           this.tip = 3 / data[0].current_price;
         });
     },
     tipping() {
-      gitFactory.methods
+      this.$factoryContract.methods
         .gitRepositories(store.getters.getRepoName)
         .call()
         .then((address) => {
@@ -175,13 +175,40 @@ export default {
         store.commit('toggleCode');
         store.commit('toggleIssues');
       }
+      this.$factoryContract.methods
+        .gitRepositories(store.getters.getRepoName)
+        .call()
+        .then((address) => {
+          const repoContract = new this.$web3Matic.eth.Contract(
+            web3Config.REPOSITORY_INTERFACE,
+            address,
+          );
+          return repoContract.methods.headCid().call();
+        })
+        .then(async (headCid) => {
+          const response = await fetch(
+            `${web3Config.IPFS_ADDRESS}/api/v0/file/ls?arg=${headCid}`,
+            {
+              method: 'POST',
+            },
+          );
+          const data = await response.json();
+          const files = [];
+          data.Objects[headCid].Links.forEach((entry) => {
+            files.push({
+              name: entry.Name,
+              type: entry.Type,
+            });
+          });
+          store.commit('updateFileList', files);
+        });
     },
     async enableIssues() {
       if (!store.getters.showIssues) {
         store.commit('toggleIssues');
         store.commit('toggleCode');
       }
-      const address = await gitFactory.methods
+      const address = await this.$factoryContract.methods
         .gitRepositories(store.getters.getRepoName)
         .call();
       console.log('Address', address);

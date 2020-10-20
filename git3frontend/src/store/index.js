@@ -22,9 +22,22 @@ export default new Vuex.Store({
   },
   mutations: {
     updateFileList(state, files) {
-      for (let i = 0; i < files.length; i += 1) {
-        Vue.set(state.fileList, i, files[i]);
+      console.log('Files length', files.length);
+      console.log('state length', state.fileList.length);
+      const length = files.length > state.fileList.length ? files.length : state.fileList.length;
+      let delPosition;
+      for (let i = 0; i < length; i += 1) {
+        if (files[i] === undefined) {
+          if (delPosition === undefined) {
+            delPosition = i;
+          }
+          Vue.delete(state.fileList, delPosition);
+        } else {
+          Vue.set(state.fileList, i, files[i]);
+        }
       }
+      console.log('Files length', files.length);
+      console.log('state length', state.fileList.length);
     },
     updateRepoName(state, name) {
       state.repoName = name;

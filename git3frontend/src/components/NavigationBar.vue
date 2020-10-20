@@ -21,13 +21,7 @@
 import store from '../store/index';
 
 const Web3 = require('web3');
-const Contract = require('web3-eth-contract');
 const web3Config = require('../lib/web3Config.js');
-
-// // set provider for all later instances to use
-Contract.setProvider(web3Config.RPC_ADDRESS);
-
-const gitFactory = new Contract(web3Config.GIT_FACTORY_INTERFACE, web3Config.GIT_FACTORY_ADDRESS);
 
 export default {
   name: 'NavigationBar',
@@ -39,9 +33,11 @@ export default {
   },
   methods: {
     searchFunction() {
-      gitFactory.methods.gitRepositories(this.search).call()
+      this.$factoryContract.methods.gitRepositories(this.search).call()
         .then((address) => {
-          const repoContract = new Contract(web3Config.REPOSITORY_INTERFACE, address);
+          const repoContract = new this.$web3Matic.eth.Contract(
+            web3Config.REPOSITORY_INTERFACE, address,
+          );
           return repoContract.methods.headCid().call();
         })
         .then(async (headCid) => {
@@ -80,10 +76,6 @@ export default {
 
       this.$web3Goerli = new Web3(new Web3.providers.HttpProvider(web3Config.GOERLI_RPC));
       this.$web3Matic = new Web3(new Web3.providers.HttpProvider(web3Config.MATIC_RPC));
-      this.$web3Goerli.eth.ens.getAddress(web3Config.FACTORY_ENS_NAME).then((address) => {
-        console.log('Resolved address', address);
-        this.$factoryContract.options.address = address;
-      });
 
       if (networkVersion === '80001') {
         this.$web3.setProvider(new Web3.providers.HttpProvider(web3Config.MATIC_RPC));
