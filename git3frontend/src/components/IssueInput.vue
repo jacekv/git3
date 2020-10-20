@@ -6,7 +6,7 @@
 
     <v-row>
       <v-col cols="2">
-        <p class="mb-0 mt-4">Add bounty:</p>
+        <p class="mb-0 mt-4">Add bounty (Wei):</p>
       </v-col>
       <v-col cols="4">
         <v-text-field class="mt-0" type="number" v-model="bounty">
@@ -26,7 +26,8 @@ import store from '../store/index';
 const Contract = require('web3-eth-contract');
 const web3Config = require('../lib/web3Config.js');
 
-const gitFactory = new Contract(web3Config.GIT_FACTORY_INTERFACE, web3Config.GIT_FACTORY_ADDRESS);
+const gitFactory = new Contract(web3Config.GIT_FACTORY_INTERFACE,
+  web3Config.GIT_FACTORY_ADDRESS);
 
 function Sleep(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));

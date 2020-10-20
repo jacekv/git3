@@ -8,13 +8,15 @@ export default new Vuex.Store({
     fileList: [],
     repoName: 'Repository Name',
     metamaskConnected: false,
-    showCode: true,
+    showLogo: true,
+    showCode: false,
     showIssues: false,
   },
   getters: {
     getFileList: (state) => state.fileList,
     getRepoName: (state) => state.repoName,
     isMetaMaskConnected: (state) => state.metamaskConnected,
+    showLogo: (state) => state.showLogo,
     showCode: (state) => state.showCode,
     showIssues: (state) => state.showIssues,
   },
@@ -35,6 +37,9 @@ export default new Vuex.Store({
     },
     toggleIssues(state) {
       state.showIssues = !state.showIssues;
+    },
+    toggleLogo(state) {
+      state.showLogo = !state.showLogo;
     },
   },
   actions: {

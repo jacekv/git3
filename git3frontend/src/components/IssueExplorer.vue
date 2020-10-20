@@ -82,6 +82,9 @@ export default {
         store.commit('updateFileList', issues);
       }
     },
+    resolveGitFactoryAddress() {
+      console.log('Resolved address:', this);
+    },
   },
 };
 </script>

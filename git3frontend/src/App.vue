@@ -10,9 +10,12 @@
           </v-col>
         </v-row>
         <v-row>
-          <v-col cols='8' offset='2'>
+          <v-col v-if='fileExplorer || issues' cols='8' offset='2'>
             <FileExplorer v-if='fileExplorer' />
             <IssueExplorer v-else-if='issues' />
+          </v-col>
+          <v-col v-if='logo' cols='8' offset='5'>
+            <img src="@/assets/myLogo.png"/>
           </v-col>
         </v-row>
       </v-container>
@@ -40,6 +43,7 @@ export default {
     return {};
   },
   computed: {
+    logo: () => store.getters.showLogo,
     fileExplorer: () => store.getters.showCode,
     issues: () => store.getters.showIssues,
   },

@@ -1,6 +1,7 @@
 module.exports = {
   GIT_FACTORY_ADDRESS: '0x3bFF586A6Cab36Bb87Da89df1d9578691e3328a1',
   RPC_ADDRESS: 'https://rpc-mumbai.matic.today',
+  FACTORY_ENS_NAME: 'factory.git3.eth',
   GIT_FACTORY_INTERFACE: [
     {
       inputs: [],
@@ -344,5 +345,6 @@ module.exports = {
   IPFS_MULTIADDR: '/ip4/127.0.0.1/tcp/5001',
   IPFS_ADDRESS: 'http://127.0.0.1:5001',
   MATIC_RPC: 'https://rpc-mumbai.matic.today',
-  GOERLI_RPC: 'https://goerli.infura.io/v3/4f889bc2be4043a3ba09b0ae06c148cd',
+  // GOERLI_RPC: 'https://goerli.infura.io/v3/4f889bc2be4043a3ba09b0ae06c148cd',
+  GOERLI_RPC: 'https://eth-goerli.gateway.pokt.network/v1/5f8b320bb90218002e9cea2b',
 };

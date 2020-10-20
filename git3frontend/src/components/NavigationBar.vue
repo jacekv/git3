@@ -1,6 +1,6 @@
 <template>
   <v-app-bar app>
-    <v-toolbar-title>Git3</v-toolbar-title>
+    <img style='widht: 50px; height: 50px' src="@/assets/myLogo.png">
     <v-text-field
       class='pl-6 shrink'
       hide-details
@@ -61,6 +61,8 @@ export default {
           });
           store.commit('updateFileList', files);
           store.commit('updateRepoName', this.search);
+          store.commit('toggleCode');
+          store.commit('toggleLogo');
         });
     },
     async connectMetaMask() {
@@ -75,13 +77,21 @@ export default {
       [this.buttonText] = accounts;
       this.buttonText = `${this.buttonText.substring(0, 6)}..${this.buttonText.substring(37)}`;
       const { networkVersion } = window.ethereum;
+
+      this.$web3Goerli = new Web3(new Web3.providers.HttpProvider(web3Config.GOERLI_RPC));
+      this.$web3Matic = new Web3(new Web3.providers.HttpProvider(web3Config.MATIC_RPC));
+      this.$web3Goerli.eth.ens.getAddress(web3Config.FACTORY_ENS_NAME).then((address) => {
+        console.log('Resolved address', address);
+        this.$factoryContract.options.address = address;
+      });
+
       if (networkVersion === '80001') {
         this.$web3.setProvider(new Web3.providers.HttpProvider(web3Config.MATIC_RPC));
       } else if (networkVersion === '5') {
         this.$web3.setProvider(new Web3.providers.HttpProvider(web3Config.GOERLI_RPC));
       }
       window.ethereum.on('chainChanged', (_chainId) => {
-        // hander when the user changes the network
+        // handler when the user changes the network
         if (_chainId === '0x13881') {
           this.$web3.setProvider(new Web3.providers.HttpProvider(web3Config.MATIC_RPC));
         } else if (_chainId === '0x5') {
