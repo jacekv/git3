@@ -93,7 +93,7 @@ export default {
   },
   methods: {
     async getBalance() {
-      const wei = await this.$web3.eth.getBalance(
+      const wei = await this.$web3Matic.eth.getBalance(
         window.ethereum.selectedAddress,
       );
       this.eth = wei / 1000000000000000000;
@@ -152,12 +152,12 @@ export default {
     },
     async checkTxConfirmed(txHash) {
       console.log('Checking tx status');
-      let receipt = await this.$web3.eth.getTransactionReceipt(txHash);
+      let receipt = await this.$web3Matic.eth.getTransactionReceipt(txHash);
       console.log(receipt);
       while (receipt === null) {
         await Sleep(5000); // eslint-disable-line no-await-in-loop
         // eslint-disable-next-line no-await-in-loop
-        receipt = await this.$web3.eth.getTransactionReceipt(txHash);
+        receipt = await this.$web3Matic.eth.getTransactionReceipt(txHash);
         if (receipt !== null) {
           if (receipt.status) {
             console.log('Transaction has been successful');
@@ -212,7 +212,7 @@ export default {
         .gitRepositories(store.getters.getRepoName)
         .call();
       console.log('Address', address);
-      const repoContract = new this.$web3.eth.Contract(
+      const repoContract = new this.$web3Matic.eth.Contract(
         web3Config.REPOSITORY_INTERFACE,
         address,
       );

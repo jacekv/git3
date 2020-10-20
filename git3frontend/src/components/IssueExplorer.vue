@@ -23,11 +23,7 @@ import IssueList from './IssueList.vue';
 import IssueInput from './IssueInput.vue';
 import store from '../store/index';
 
-// const Contract = require('web3-eth-contract');
 const web3Config = require('../lib/web3Config.js');
-
-// const gitFactory =
-// new Contract(web3Config.GIT_FACTORY_INTERFACE, web3Config.GIT_FACTORY_ADDRESS);
 
 export default {
   name: 'IssueExplorer',
@@ -45,15 +41,13 @@ export default {
       this.showList = false;
     },
     async inputAction(value) {
-      console.log('Emmitted', value);
       if (value === 'cancle') {
         this.showList = true;
       } else if (value === 'openedIssue') {
         this.showList = true;
         const address = await this.$factoryContract.methods
           .gitRepositories(store.getters.getRepoName).call();
-        console.log('Address123', address);
-        const repoContract = new this.$web3.eth.Contract(
+        const repoContract = new this.$web3Matic.eth.Contract(
           web3Config.REPOSITORY_INTERFACE, address,
         );
 
@@ -72,19 +66,16 @@ export default {
             });
             // eslint-disable-next-line no-await-in-loop
             data = await issue.json();
-            console.log('Data', data);
+            // console.log('Data', data);
             issues.push(data);
           } catch (e) {
-            console.log('EE', e);
+            // console.log('EE', e);
             ok = false;
           }
           i += 1;
         }
         store.commit('updateFileList', issues);
       }
-    },
-    resolveGitFactoryAddress() {
-      console.log('Resolved address:', this);
     },
   },
 };

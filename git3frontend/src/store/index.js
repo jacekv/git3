@@ -22,8 +22,6 @@ export default new Vuex.Store({
   },
   mutations: {
     updateFileList(state, files) {
-      console.log('Files length', files.length);
-      console.log('state length', state.fileList.length);
       const length = files.length > state.fileList.length ? files.length : state.fileList.length;
       let delPosition;
       for (let i = 0; i < length; i += 1) {
@@ -36,8 +34,6 @@ export default new Vuex.Store({
           Vue.set(state.fileList, i, files[i]);
         }
       }
-      console.log('Files length', files.length);
-      console.log('state length', state.fileList.length);
     },
     updateRepoName(state, name) {
       state.repoName = name;

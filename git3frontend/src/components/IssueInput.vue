@@ -37,17 +37,18 @@ export default {
       bounty: 0,
       title: '',
       issueText: '',
+      showBountyInput: store.getters.isMetaMaskConnected,
     };
   },
   methods: {
     async checkTxConfirmed(txHash) {
       console.log('Checking tx status');
-      let receipt = await this.$web3.eth.getTransactionReceipt(txHash);
+      let receipt = await this.$web3Matic.eth.getTransactionReceipt(txHash);
       console.log(receipt);
       while (receipt === null) {
         await Sleep(5000); // eslint-disable-line no-await-in-loop
         // eslint-disable-next-line no-await-in-loop
-        receipt = await this.$web3.eth.getTransactionReceipt(txHash);
+        receipt = await this.$web3Matic.eth.getTransactionReceipt(txHash);
         if (receipt !== null) {
           if (receipt.status) {
             console.log('Transaction has been successful');
@@ -82,7 +83,6 @@ export default {
       })
         .then((r) => r.json())
         .then(async (data) => {
-          console.log(data);
           const address = await this.$factoryContract.methods
             .gitRepositories(store.getters.getRepoName).call();
 
@@ -92,7 +92,8 @@ export default {
           const callData = repoContract.methods
             .openIssue(data.Cid['/'])
             .encodeABI();
-
+          // metamask is required. For future might be better to use a gsn
+          // if someone doesnt has metamask
           return window.ethereum.request({
             method: 'eth_sendTransaction',
             params: [

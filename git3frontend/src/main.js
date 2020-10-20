@@ -7,7 +7,6 @@ const Web3 = require('web3');
 const web3Config = require('./lib/web3Config.js');
 
 Vue.config.productionTip = false;
-Vue.prototype.$web3 = new Web3();
 Vue.prototype.$web3Goerli = new Web3(new Web3.providers.HttpProvider(web3Config.GOERLI_RPC));
 Vue.prototype.$web3Matic = new Web3(new Web3.providers.HttpProvider(web3Config.MATIC_RPC));
 

@@ -20,7 +20,6 @@
 <script>
 import store from '../store/index';
 
-const Web3 = require('web3');
 const web3Config = require('../lib/web3Config.js');
 
 export default {
@@ -72,24 +71,6 @@ export default {
       store.commit('updateMetaMaskConnectionStatus', true);
       [this.buttonText] = accounts;
       this.buttonText = `${this.buttonText.substring(0, 6)}..${this.buttonText.substring(37)}`;
-      const { networkVersion } = window.ethereum;
-
-      this.$web3Goerli = new Web3(new Web3.providers.HttpProvider(web3Config.GOERLI_RPC));
-      this.$web3Matic = new Web3(new Web3.providers.HttpProvider(web3Config.MATIC_RPC));
-
-      if (networkVersion === '80001') {
-        this.$web3.setProvider(new Web3.providers.HttpProvider(web3Config.MATIC_RPC));
-      } else if (networkVersion === '5') {
-        this.$web3.setProvider(new Web3.providers.HttpProvider(web3Config.GOERLI_RPC));
-      }
-      window.ethereum.on('chainChanged', (_chainId) => {
-        // handler when the user changes the network
-        if (_chainId === '0x13881') {
-          this.$web3.setProvider(new Web3.providers.HttpProvider(web3Config.MATIC_RPC));
-        } else if (_chainId === '0x5') {
-          this.$web3.setProvider(new Web3.providers.HttpProvider(web3Config.GOERLI_RPC));
-        }
-      });
     },
   },
 };
