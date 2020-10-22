@@ -310,6 +310,8 @@ def init(repo):
     for name in ['objects', 'refs', 'refs/heads']:
         os.mkdir(os.path.join(repo, '.git', name))
     write_file(os.path.join(repo, '.git', 'HEAD'), b'ref: refs/heads/master')
+    with open(os.path.join(repo, '.git', 'name'), 'w') as f:
+        f.write(repo)
     print('initialized empty repository: {}'.format(repo))
 
 
@@ -432,7 +434,7 @@ def push_new_cid(cid):
     repo_name = read_repo_name()
     git_repo_address = git_factory.functions.gitRepositories(repo_name).call()
     repo_contract = get_repository_contract(git_repo_address)
-    
+
     w3 = get_web3_provider()
     nonce = w3.eth.getTransactionCount(USER_ADDRESS)
     #priv_key= bytes.fromhex(getpass('Provide priv key: '))
@@ -627,8 +629,8 @@ def add(paths):
     for path in paths:
         # we are adding ./ to the path, to make it during the 
         # push easier to compare paths
-        #if not path.startswith('./'):
-        #    path = './' + path
+        if not path.startswith('./'):
+            path = './' + path
         sha1 = hash_object(read_file(path), 'blob')
         st = os.stat(path)
         flags = len(path.encode())
@@ -867,6 +869,7 @@ def push(git_url): #, username=None, password=None):
             # push the object files to. Additionaly we exclude all files
             # which are not indexed!
             full_path = os.path.join(path, name)
+            print('Full path', full_path)
             if not path.startswith('./.git/objects') and (full_path in files_to_push or full_path.startswith('./.git')):
                 all_files_in_repo.append(full_path)
             else:
