@@ -304,15 +304,20 @@ def write_file(path, data):
 
 def init(repo):
     """Create directory for repo and initialize .git directory."""
-    os.mkdir(repo)
-    #TODO: Create name folder in .git with the name of the repo
+    #TODO: check if there is already a .git directory
+    if repo != '.':
+        os.mkdir(repo)
+        repoName = repo
+    else:
+        repoName = os.getcwd().split('/')[-1]
     os.mkdir(os.path.join(repo, '.git'))
+    # create necessary directories
     for name in ['objects', 'refs', 'refs/heads']:
         os.mkdir(os.path.join(repo, '.git', name))
     write_file(os.path.join(repo, '.git', 'HEAD'), b'ref: refs/heads/master')
-    with open(os.path.join(repo, '.git', 'name'), 'w') as f:
-        f.write(repo)
-    print('initialized empty repository: {}'.format(repo))
+    # write the name of the repository into a file
+    write_file(os.path.join(repo, '.git', 'name'), str.encode(repoName))
+    print('initialized empty repository: {}'.format(repoName))
 
 
 def hash_object(data, obj_type, write=True):
@@ -985,6 +990,8 @@ if __name__ == '__main__':
     sub_parser = sub_parsers.add_parser('init',
             help='initialize a new repo')
     sub_parser.add_argument('repo',
+            nargs='?',
+            default='.',
             help='directory name for new repo')
 
     #sub_parser = sub_parsers.add_parser('ls-files',
