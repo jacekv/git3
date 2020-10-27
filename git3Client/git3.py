@@ -303,21 +303,32 @@ def write_file(path, data):
 
 
 def init(repo):
-    """Create directory for repo and initialize .git directory."""
-    #TODO: check if there is already a .git directory
+    """
+    Create .git directory for repository and fill with directories and files.
+    """
+    if os.path.exists(os.path.join(repo, '.git')):
+        print('.git folder exists already')
+        return
+
+    cwd = os.getcwd()
     if repo != '.':
         os.mkdir(repo)
         repoName = repo
+        fullPath = cwd + '/' + repo
     else:
-        repoName = os.getcwd().split('/')[-1]
+        repoName = cwd.split('/')[-1]
+        fullPath = cwd
+
     os.mkdir(os.path.join(repo, '.git'))
     # create necessary directories
     for name in ['objects', 'refs', 'refs/heads']:
         os.mkdir(os.path.join(repo, '.git', name))
     write_file(os.path.join(repo, '.git', 'HEAD'), b'ref: refs/heads/master')
+
     # write the name of the repository into a file
     write_file(os.path.join(repo, '.git', 'name'), str.encode(repoName))
-    print('initialized empty repository: {}'.format(repoName))
+        
+    print('Initialized empty Git3 repository in: {}'.format(fullPath))
 
 
 def hash_object(data, obj_type, write=True):
@@ -468,6 +479,7 @@ def clone(repo_name):
     headCid = repo_contract.functions.headCid().call()
     print('Cloning {:s}'.format(repo_name))
     client = ipfshttpclient.connect(IPFS_CONNECTION)
+    #client = ipfshttpclient.connect('/dns/ipfs.infura.io/tcp/5001/https')
     client.get(headCid)
     os.rename(headCid, repo_name)
     client.close()
@@ -891,6 +903,7 @@ def push(git_url): #, username=None, password=None):
     remote_cid_history = get_remote_cid_history()
     repo_name = read_repo_name()
     client = ipfshttpclient.connect(IPFS_CONNECTION)
+    #client = ipfshttpclient.connect('/dns/ipfs.infura.io/tcp/5001/https')
     #here we are just getting the hash before pushing it to ipfs
     #before we push it to ipfs we will check if there is a contract
     #and if the CID's are differnt. If they are the same
