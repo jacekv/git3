@@ -41,19 +41,32 @@ export default {
         })
         .then(async (headCid) => {
           const response = await fetch(
-            `${web3Config.IPFS_ADDRESS}/api/v0/file/ls?arg=${headCid}`,
+            `${web3Config.IPFS_ADDRESS}/api/v0/dag/get?arg=${headCid}`,
             {
               method: 'POST',
             },
           );
           const data = await response.json();
           const files = [];
-          data.Objects[headCid].Links.forEach((entry) => {
+          let status;
+          let responseSub;
+          // requesting the sub data in order to check if it is a directory or a file
+          for (let i = 0; i < data.links.length; i += 1) {
+            // eslint-disable-next-line no-await-in-loop
+            responseSub = await fetch(
+              `${web3Config.IPFS_ADDRESS}/api/v0/dag/get?arg=${data.links[i].Cid['/']}`,
+              {
+                method: 'POST',
+              },
+            );
+            // eslint-disable-next-line no-await-in-loop
+            status = await responseSub.json();
             files.push({
-              name: entry.Name,
-              type: entry.Type,
+              name: `${data.links[i].Name}`,
+              type: (status.data === 'CAE=' ? 'Directory' : 'File'),
             });
-          });
+          }
+
           store.commit('updateFileList', files);
           store.commit('updateRepoName', this.search);
           store.commit('toggleCode');

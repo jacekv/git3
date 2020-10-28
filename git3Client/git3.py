@@ -902,8 +902,8 @@ def push(git_url): #, username=None, password=None):
     # IPFS STUFF START
     remote_cid_history = get_remote_cid_history()
     repo_name = read_repo_name()
-    client = ipfshttpclient.connect(IPFS_CONNECTION)
-    #client = ipfshttpclient.connect('/dns/ipfs.infura.io/tcp/5001/https')
+    #client = ipfshttpclient.connect(IPFS_CONNECTION)
+    client = ipfshttpclient.connect('/dns/ipfs.infura.io/tcp/5001/https')
     #here we are just getting the hash before pushing it to ipfs
     #before we push it to ipfs we will check if there is a contract
     #and if the CID's are differnt. If they are the same
