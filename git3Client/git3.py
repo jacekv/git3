@@ -6,6 +6,7 @@ Released under a permissive MIT license (see LICENSE.txt).
 """
 from web3 import Web3
 from getpass import getpass
+from pathlib import Path
 
 import argparse, collections, difflib, enum, hashlib, operator, os, stat
 import struct, sys, time, urllib.request, zlib
@@ -281,6 +282,16 @@ REPOSITORY_ABI = '''
 '''
 
 
+class NoRepositoryError(Exception):
+    """
+    Exception raised for not finding a .git folder.
+
+    Attributes:
+        message -- Error message
+    """
+    def __init__(self, message):
+        self.message = message
+
 class ObjectType(enum.Enum):
     """Object type enum. There are other types too, but we don't need them.
     See "enum object_type" in git's source (git/cache.h).
@@ -335,11 +346,15 @@ def hash_object(data, obj_type, write=True):
     """Compute hash of object data of given type and write to object store if
     "write" is True. Return SHA-1 object hash as hex string.
     """
+    try:
+        repo_root_path = get_repo_root_path()
+    except NoRepositoryError as nre:
+        raise NoRepositoryError(nre)
     header = '{} {}'.format(obj_type, len(data)).encode()
     full_data = header + b'\x00' + data
     sha1 = hashlib.sha1(full_data).hexdigest()
     if write:
-        path = os.path.join('.git', 'objects', sha1[:2], sha1[2:])
+        path = os.path.join(repo_root_path, '.git', 'objects', sha1[:2], sha1[2:])
         if not os.path.exists(path):
             os.makedirs(os.path.dirname(path), exist_ok=True)
             write_file(path, zlib.compress(full_data))
@@ -501,7 +516,7 @@ def check_if_repo_created():
     repo_name = read_repo_name()
     w3 = get_web3_provider()
     if not w3.isConnected():
-        #TODO Throw an exception
+        #TODO: Throw an exception
         print('No connection. Establish a connection first')
         return False
     gitFactory = get_factory_contract()
@@ -521,9 +536,12 @@ def read_repo_name():
 def read_index():
     """Read git index file and return list of IndexEntry objects."""
     try:
-        data = read_file(os.path.join('.git', 'index'))
+        repo_root_path = get_repo_root_path()
+        data = read_file(os.path.join(repo_root_path, '.git', 'index'))
     except FileNotFoundError:
         return []
+    except NoRepositoryError as nre:
+        raise NoRepositoryError(nre)
     digest = hashlib.sha1(data[:-20]).digest()
     assert digest == data[-20:], 'invalid index checksum'
     signature, version, num_entries = struct.unpack('!4sLL', data[:12])
@@ -560,8 +578,9 @@ def ls_files(details=False):
 
 
 def get_status():
-    """Get status of working copy, return tuple of (changed_paths, new_paths,
-    deleted_paths).
+    """
+    Get status of working copy, return tuple of
+    (changed_paths, new_paths, deleted_paths).
     """
     paths = set()
     for root, dirs, files in os.walk('.'):
@@ -622,6 +641,10 @@ def diff():
 
 def write_index(entries):
     """Write list of IndexEntry objects to git index file."""
+    try:
+        repo_root_path = get_repo_root_path()
+    except NoRepositoryError as nre:
+        raise NoRepositoryError(nre)
     packed_entries = []
     for entry in entries:
         entry_head = struct.pack('!LLLLLLLLLL20sH',
@@ -635,27 +658,50 @@ def write_index(entries):
     header = struct.pack('!4sLL', b'DIRC', 2, len(entries))
     all_data = header + b''.join(packed_entries)
     digest = hashlib.sha1(all_data).digest()
-    write_file(os.path.join('.git', 'index'), all_data + digest)
+    write_file(os.path.join(repo_root_path, '.git', 'index'), all_data + digest)
+    
+
+
+def get_repo_root_path():
+    """
+    Finds the root path of the repository where the .git folder resides and returns the path.
+    If no .git folder is found, returns False
+    """
+    path_to_test = Path(os.getcwd())
+    contains_git_folder = os.path.isdir(str(path_to_test) + '/.git')
+    parent = 0
+    while not contains_git_folder and str(path_to_test.parents[parent]) != '/':
+        contains_git_folder = os.path.isdir(str(path_to_test.parents[parent]) + '/.git')
+        if contains_git_folder:
+            break
+        parent += 1
+    if contains_git_folder:
+        return str(path_to_test.parents[parent])
+    raise NoRepositoryError('Haven\'t found a git repository. Init one first.')
 
 
 def add(paths):
     """Add all file paths to git index."""
     paths = [p.replace('\\', '/') for p in paths]
-    all_entries = read_index()
+    all_entries = []
+    try:
+        all_entries = read_index()
+    except NoRepositoryError as nre:
+        print(nre)
+        exit(1)
+    print(all_entries)
     entries = [e for e in all_entries if e.path not in paths]
     for path in paths:
-        # we are adding ./ to the path, to make it during the 
-        # push easier to compare paths
-        if not path.startswith('./'):
-            path = './' + path
         sha1 = hash_object(read_file(path), 'blob')
         st = os.stat(path)
         flags = len(path.encode())
         assert flags < (1 << 12)
+        # gets the relative path to the repository root folder
+        relative_path = os.path.relpath(os.path.abspath(path), get_repo_root_path())
         entry = IndexEntry(
                 int(st.st_ctime), 0, int(st.st_mtime), 0, st.st_dev,
                 st.st_ino, st.st_mode, st.st_uid, st.st_gid, st.st_size,
-                bytes.fromhex(sha1), flags, path)
+                bytes.fromhex(sha1), flags, relative_path)
         entries.append(entry)
     entries.sort(key=operator.attrgetter('path'))
     write_index(entries)
