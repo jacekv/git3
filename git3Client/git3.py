@@ -646,6 +646,7 @@ def write_index(entries):
     except NoRepositoryError as nre:
         raise NoRepositoryError(nre)
     packed_entries = []
+
     for entry in entries:
         entry_head = struct.pack('!LLLLLLLLLL20sH',
                 entry.ctime_s, entry.ctime_n, entry.mtime_s, entry.mtime_n,
@@ -669,6 +670,8 @@ def get_repo_root_path():
     """
     path_to_test = Path(os.getcwd())
     contains_git_folder = os.path.isdir(str(path_to_test) + '/.git')
+    if contains_git_folder:
+        return str(path_to_test)
     parent = 0
     while not contains_git_folder and str(path_to_test.parents[parent]) != '/':
         contains_git_folder = os.path.isdir(str(path_to_test.parents[parent]) + '/.git')
@@ -682,22 +685,32 @@ def get_repo_root_path():
 
 def add(paths):
     """Add all file paths to git index."""
+    try:
+        repo_root_path = get_repo_root_path()
+    except NoRepositoryError as nre:
+        print(nre)
+        exit(1)
+
     paths = [p.replace('\\', '/') for p in paths]
     all_entries = []
+    # transfer paths to relative paths. Relative to the repository root
+    paths = list(map(lambda path: os.path.relpath(os.path.abspath(path), repo_root_path), paths))
+
     try:
         all_entries = read_index()
     except NoRepositoryError as nre:
         print(nre)
         exit(1)
-    print(all_entries)
+
     entries = [e for e in all_entries if e.path not in paths]
     for path in paths:
-        sha1 = hash_object(read_file(path), 'blob')
-        st = os.stat(path)
-        flags = len(path.encode())
+        file_path = repo_root_path + '/' + path
+        sha1 = hash_object(read_file(file_path), 'blob')
+        st = os.stat(file_path)
+        flags = len(file_path.encode())
         assert flags < (1 << 12)
-        # gets the relative path to the repository root folder
-        relative_path = os.path.relpath(os.path.abspath(path), get_repo_root_path())
+        # gets the relative path to the repository root folder for the index file
+        relative_path = os.path.relpath(os.path.abspath(file_path), repo_root_path)
         entry = IndexEntry(
                 int(st.st_ctime), 0, int(st.st_mtime), 0, st.st_dev,
                 st.st_ino, st.st_mode, st.st_uid, st.st_gid, st.st_size,
