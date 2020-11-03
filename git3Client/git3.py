@@ -763,12 +763,12 @@ def write_tree():
         if isinstance(entry, IndexEntry):
             mode_path = '{:o} {}'.format(entry.mode, entry.path).encode()
             tree_entry = mode_path + b'\x00' + entry.sha1
-            tree_entries.append(tree_entry)
         elif isinstance(entry, str):
             tree_hash = __write_subtree(tree_to_process, entry)
             mode_path = '{:o} {}'.format(GIT_TREE_MODE, entry).encode()
             tree_entry = mode_path + b'\x00' + binascii.unhexlify(tree_hash)
-            tree_entries.append(tree_entry)
+
+        tree_entries.append(tree_entry)
     return hash_object(b''.join(tree_entries), 'tree')
 
 def __write_subtree(indexEntries, dirName):
@@ -780,12 +780,12 @@ def __write_subtree(indexEntries, dirName):
         if isinstance(entry, IndexEntry):
             mode_path = '{:o} {}'.format(entry.mode, entry.path.split('/')[-1]).encode()
             tree_entry = mode_path + b'\x00' + entry.sha1
-            tree_entries.append(tree_entry)
         elif isinstance(entry, str):
             tree_hash = __write_subtree(indexEntries, entry)
             mode_path = '{:o} {}'.format(GIT_TREE_MODE, entry.split('/')[-1]).encode()
             tree_entry = mode_path + b'\x00' + binascii.unhexlify(tree_hash)
-            tree_entries.append(tree_entry)
+
+        tree_entries.append(tree_entry)
     return hash_object(b''.join(tree_entries), 'tree')
 
 def get_local_master_hash():
