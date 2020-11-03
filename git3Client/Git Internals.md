@@ -107,3 +107,4 @@ You is a usefull terminal command to read internal git objects:
 ```
 python2 -c "import zlib,sys;sys.stdout.write(zlib.decompress(sys.stdin.read()))"   <.git/objects/9a/1462e447d986840ba13ce87e8b22160e74e099 | hd
 ```
+
