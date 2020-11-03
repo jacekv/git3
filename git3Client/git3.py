@@ -12,12 +12,18 @@ import argparse, collections, difflib, enum, hashlib, operator, os, stat
 import struct, sys, time, urllib.request, zlib
 import shutil
 import ipfshttpclient
+import binascii
 
 # Data for one entry in the git index (.git/index)
 IndexEntry = collections.namedtuple('IndexEntry', [
     'ctime_s', 'ctime_n', 'mtime_s', 'mtime_n', 'dev', 'ino', 'mode', 'uid',
     'gid', 'size', 'sha1', 'flags', 'path',
 ])
+
+# mode of the file 33188 -> o100644 
+# 100644 is a normal file in git
+GIT_NORMAL_FILE_MODE = 33188
+GIT_TREE_MODE = 16384
 
 RPC_ADDRESS = 'https://rpc-mumbai.matic.today'
 GIT_FACTORY_ADDRESS = '0x3bFF586A6Cab36Bb87Da89df1d9578691e3328a1'
@@ -339,7 +345,7 @@ def init(repo):
     # write the name of the repository into a file
     write_file(os.path.join(repo, '.git', 'name'), str.encode(repoName))
         
-    print('Initialized empty Git3 repository in: {}'.format(fullPath))
+    print('Initialized empty Git3 repository in: {}/.git/'.format(fullPath))
 
 
 def hash_object(data, obj_type, write=True):
@@ -707,13 +713,15 @@ def add(paths):
         file_path = repo_root_path + '/' + path
         sha1 = hash_object(read_file(file_path), 'blob')
         st = os.stat(file_path)
+        #TODO: We will need to check for the file mode properly!
+        mode = GIT_NORMAL_FILE_MODE
         flags = len(file_path.encode())
         assert flags < (1 << 12)
         # gets the relative path to the repository root folder for the index file
         relative_path = os.path.relpath(os.path.abspath(file_path), repo_root_path)
         entry = IndexEntry(
                 int(st.st_ctime), 0, int(st.st_mtime), 0, st.st_dev,
-                st.st_ino, st.st_mode, st.st_uid, st.st_gid, st.st_size,
+                st.st_ino, mode, st.st_uid, st.st_gid, st.st_size,
                 bytes.fromhex(sha1), flags, relative_path)
         entries.append(entry)
     entries.sort(key=operator.attrgetter('path'))
@@ -723,14 +731,62 @@ def add(paths):
 def write_tree():
     """Write a tree object from the current index entries."""
     tree_entries = []
-    for entry in read_index():
-        assert '/' not in entry.path, \
-                'currently only supports a single, top-level directory'
-        mode_path = '{:o} {}'.format(entry.mode, entry.path).encode()
-        tree_entry = mode_path + b'\x00' + entry.sha1
-        tree_entries.append(tree_entry)
+    tree_to_process = {'.': []}
+    indexEntries = read_index()
+    for entry in indexEntries:
+        if '/' in entry.path:
+            path = '/'.join(entry.path.split('/')[0:-1])
+        else:
+            path = '.'
+
+        if path in tree_to_process:
+            tree_to_process[path].append(entry)
+        else:
+            tree_to_process[path] = [entry]
+
+        # check if path is a directory and not a path to a sub directory
+        # if so, add it to the root dir
+        if path != '.' and '/' not in path:
+            if '.' in tree_to_process and path not in tree_to_process['.']:
+                tree_to_process['.'].append(path)
+            elif '.' in tree_to_process and path not in tree_to_process['.']:
+                tree_to_process['.'] = [path]
+        elif '/' in path:
+            # if there is subdirectory in a directory we add it
+            key = '/'.join(path.split('/')[0:-1])
+            if key in tree_to_process:
+                tree_to_process[key].append(path)
+            else:
+                tree_to_process[key] = [path]
+
+    for entry in tree_to_process['.']:
+        if isinstance(entry, IndexEntry):
+            mode_path = '{:o} {}'.format(entry.mode, entry.path).encode()
+            tree_entry = mode_path + b'\x00' + entry.sha1
+            tree_entries.append(tree_entry)
+        elif isinstance(entry, str):
+            tree_hash = __write_subtree(tree_to_process, entry)
+            mode_path = '{:o} {}'.format(GIT_TREE_MODE, entry).encode()
+            tree_entry = mode_path + b'\x00' + binascii.unhexlify(tree_hash)
+            tree_entries.append(tree_entry)
     return hash_object(b''.join(tree_entries), 'tree')
 
+def __write_subtree(indexEntries, dirName):
+    """
+    Create a subtree for a subdirectories which is going to be added to the normal tree
+    """
+    tree_entries = []
+    for entry in indexEntries[dirName]:
+        if isinstance(entry, IndexEntry):
+            mode_path = '{:o} {}'.format(entry.mode, entry.path.split('/')[-1]).encode()
+            tree_entry = mode_path + b'\x00' + entry.sha1
+            tree_entries.append(tree_entry)
+        elif isinstance(entry, str):
+            tree_hash = __write_subtree(indexEntries, entry)
+            mode_path = '{:o} {}'.format(GIT_TREE_MODE, entry.split('/')[-1]).encode()
+            tree_entry = mode_path + b'\x00' + binascii.unhexlify(tree_hash)
+            tree_entries.append(tree_entry)
+    return hash_object(b''.join(tree_entries), 'tree')
 
 def get_local_master_hash():
     """Get current commit hash (SHA-1 string) of local master branch."""
@@ -745,6 +801,7 @@ def commit(message, author=None):
     """Commit the current state of the index to master with given message.
     Return hash of commit object.
     """
+    # we are working on write tree
     tree = write_tree()
     parent = get_local_master_hash()
     if author is None:
