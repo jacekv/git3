@@ -870,21 +870,40 @@ def http_request(url, username, password, data=None):
     return f.read()
 
 
-def get_remote_master_hash(git_url, username, password):
-    """Get commit hash of remote master branch, return SHA-1 hex string or
-    None if no remote commits.
+# def get_remote_master_hash(git_url, username, password):
+#     """Get commit hash of remote master branch, return SHA-1 hex string or
+#     None if no remote commits.
+#     """
+    # url = git_url + '/info/refs?service=git-receive-pack'
+    # response = http_request(url, username, password)
+    # lines = extract_lines(response)
+    # assert lines[0] == b'# service=git-receive-pack\n'
+    # assert lines[1] == b''
+    # if lines[2][:40] == b'0' * 40:
+    #     return None
+    # master_sha1, master_ref = lines[2].split(b'\x00')[0].split()
+    # assert master_ref == b'refs/heads/master'
+    # assert len(master_sha1) == 40
+    # return master_sha1.decode()
+
+def get_remote_master_hash():
     """
-    url = git_url + '/info/refs?service=git-receive-pack'
-    response = http_request(url, username, password)
-    lines = extract_lines(response)
-    assert lines[0] == b'# service=git-receive-pack\n'
-    assert lines[1] == b''
-    if lines[2][:40] == b'0' * 40:
+    Get commit hash of remote master branch, return CID or None if no remote commits.
+    """
+    git_factory = get_factory_contract()
+    repo_name = read_repo_name()
+    git_repo_address = git_factory.functions.gitRepositories(repo_name).call()
+    print(git_repo_address)
+    if git_repo_address == '0x0000000000000000000000000000000000000000':
+        print('No such repository')
+        return
+    repo_contract = get_repository_contract(git_repo_address)
+    headCid = repo_contract.functions.headCid().call()
+    if headCid == '':
         return None
-    master_sha1, master_ref = lines[2].split(b'\x00')[0].split()
-    assert master_ref == b'refs/heads/master'
-    assert len(master_sha1) == 40
-    return master_sha1.decode()
+    #TODO: We will get here the CID. But that is not enough. We will need to have the sha1 hash. So we need to request
+    #the data from IPFS and check the content.
+    return headCid
 
 
 def read_tree(sha1=None, data=None):
@@ -980,65 +999,158 @@ def create_pack(objects):
     return data
 
 
-def push(git_url): #, username=None, password=None):
+def __push_tree(tree_hash, folder_name):
+    entries = read_tree(tree_hash)
+    tree_entries = []
+    #TODO: This has to be done somewhere else, because I will have a recursive call and don't want to
+    #connect and disconnect all the time
+    client = ipfshttpclient.connect('/dns/ipfs.infura.io/tcp/5001/https')
+    for entry in entries:
+        if entry[0] == GIT_NORMAL_FILE_MODE:
+            obj_type, blob = read_object(entry[2])
+            assert obj_type == 'blob'
+            blob_to_push = {
+                'type': 'blob',
+                'content': blob.decode()
+            }
+            cid = client.add_json(blob_to_push)
+            # client.get_json(cid)
+            tree_entries.append({
+                'mode': entry[0],
+                'name': entry[1],
+                'cid': cid
+            })
+        elif entry[0] == GIT_TREE_MODE:
+            print('We found a tree object')
+    tree_to_push = {
+        'type': 'tree',
+        'entries': tree_entries,
+        'name': folder_name
+    }
+    cid = client.add_json(tree_to_push)
+    # print(client.get_json(cid))
+    client.close()
+    return cid
+
+def __push_commit(commit_hash):
+    obj_type, commit = read_object(commit_hash)
+    assert obj_type == 'commit'
+    lines = commit.decode().splitlines()
+    commit_to_push = {
+        'type': 'commit',
+        'parents': [],
+    }
+    for line in lines:
+        if line.startswith('tree '):
+            print('We found a tree')
+            tree_hash = line[5:45]
+            commit_to_push['tree'] = __push_tree(tree_hash, '.')
+        elif line.startswith('parent '):
+            print('We found a parent')
+            print('Parent hash', line[7:47])
+            parent_cid = __push_commit(line[7:47])
+            commit_to_push['parents'].append(parent_cid)
+        elif line.startswith('author'):
+            print('We found an author')
+            splitted_line = line.split(' ')
+            commit_to_push['author'] = {
+                'name': splitted_line[1],
+                'email': splitted_line[2],
+                'date_seconds': splitted_line[3],
+                'date_timestamp': splitted_line[4],
+            }
+        elif line.startswith('committer'):
+            print('WE found an commiter')
+            splitted_line = line.split(' ')
+            commit_to_push['committer'] = {
+                'name': splitted_line[1],
+                'email': splitted_line[2],
+                'date_seconds': splitted_line[3],
+                'date_timestamp': splitted_line[4],
+            }
+        else:
+            print('This might be the commit message')
+            if line == '':
+                space_commit_message = True
+                
+            if space_commit_message:
+                commit_to_push['commit_message'] = line
+    client = ipfshttpclient.connect('/dns/ipfs.infura.io/tcp/5001/https')
+    commit_cid = client.add_json(commit_to_push)
+    client.close()
+    print('Commit CID', commit_cid)
+    return commit_cid
+            
+def push(git_url):
     """Push master branch to given git repo URL.""" 
     if not check_if_repo_created():
         print('Repository has not been registered yet. Use\n\n`git create`\n\nbefore you push')
         return
-    entries = read_index()
-    print('Entries', read_index)
-    files_to_push = []
-    for entry in entries:
-        print(entry)
-        files_to_push.append(entry.path)
-        #print('Path to file:', entry.path)
-    print('Files to push', files_to_push)
-    all_files_in_repo = []
-    all_files_to_move = []
-    for path, subdirs, files in os.walk('.'):
-        for name in files:
-            # we are excluding the objects files, since we are pushing the
-            # files itself to ipfs. Therefore it doesn't make sense to
-            # push the object files to. Additionaly we exclude all files
-            # which are not indexed!
-            full_path = os.path.join(path, name)
-            print('Full path', full_path)
-            if not path.startswith('./.git/objects') and (full_path in files_to_push or full_path.startswith('./.git')):
-                all_files_in_repo.append(full_path)
-            else:
-               all_files_to_move.append(full_path)
-               print(full_path[2:])
-               #creates directory structure in tmp before the move
-               os.makedirs(os.path.dirname('/tmp/' + full_path[2:]), exist_ok=True)
-               # moves the file to tmp
-               shutil.move(full_path[2:], '/tmp/' + full_path[2:])
-               # TODO: do we need to delete the dirs at the source so that they won't get uploaded to ipfs?
-    print('All files in repo', all_files_in_repo)
-    print('All files to move', all_files_to_move)
-    # IPFS STUFF START
-    remote_cid_history = get_remote_cid_history()
-    repo_name = read_repo_name()
-    #client = ipfshttpclient.connect(IPFS_CONNECTION)
-    client = ipfshttpclient.connect('/dns/ipfs.infura.io/tcp/5001/https')
-    #here we are just getting the hash before pushing it to ipfs
-    #before we push it to ipfs we will check if there is a contract
-    #and if the CID's are differnt. If they are the same
-    #we don't need to push
-    res = client.add('../{:s}'.format(repo_name), recursive=True, only_hash=True)
-    client.close()
-    # IPFS STUFF STOP
-    # we are pushing if remote
-    if res[-1]['Hash'] not in remote_cid_history:
-        print('Pushing content')
-        res = client.add('../{:s}'.format(repo_name), recursive=True)
-        push_new_cid(res[-1]['Hash'])
-    else:
-        print('There is nothing to push')
-    for file in all_files_to_move:
-        #print(file)
-        # copying the files back to their source :)
-        shutil.move('/tmp/' + file[2:], file[2:])
-        # TODO: Do we need to remove the dirs? Should do that I guess
+    local_sha1 = get_local_master_hash()
+    remote_hash = get_remote_master_hash()
+    if remote_hash == None:
+        print('Remote is None, so we can push :)')
+        master_cid = __push_commit(local_sha1)
+        # parents = (l[7:47] for l in lines if l.startswith('parent '))
+        # for parent in parents:
+        #     print('Parent', parent)
+        # #TODO: we need to create a commit object.
+    print('Local sha1', local_sha1)
+    print('Remote CID', get_remote_master_hash())
+    # entries = read_index()
+    # print('Entries', read_index)
+    # files_to_push = []
+    # for entry in entries:
+    #     print(entry)
+    #     files_to_push.append(entry.path)
+    #     #print('Path to file:', entry.path)
+    # print('Files to push', files_to_push)
+    # all_files_in_repo = []
+    # all_files_to_move = []
+    # for path, subdirs, files in os.walk('.'):
+    #     for name in files:
+    #         # we are excluding the objects files, since we are pushing the
+    #         # files itself to ipfs. Therefore it doesn't make sense to
+    #         # push the object files to. Additionaly we exclude all files
+    #         # which are not indexed!
+    #         full_path = os.path.join(path, name)
+    #         print('Full path', full_path)
+    #         if not path.startswith('./.git/objects') and (full_path in files_to_push or full_path.startswith('./.git')):
+    #             all_files_in_repo.append(full_path)
+    #         else:
+    #            all_files_to_move.append(full_path)
+    #            print(full_path[2:])
+    #            #creates directory structure in tmp before the move
+    #            os.makedirs(os.path.dirname('/tmp/' + full_path[2:]), exist_ok=True)
+    #            # moves the file to tmp
+    #            shutil.move(full_path[2:], '/tmp/' + full_path[2:])
+    #            # TODO: do we need to delete the dirs at the source so that they won't get uploaded to ipfs?
+    # print('All files in repo', all_files_in_repo)
+    # print('All files to move', all_files_to_move)
+    # # IPFS STUFF START
+    # remote_cid_history = get_remote_cid_history()
+    # repo_name = read_repo_name()
+    # #client = ipfshttpclient.connect(IPFS_CONNECTION)
+    # client = ipfshttpclient.connect('/dns/ipfs.infura.io/tcp/5001/https')
+    # #here we are just getting the hash before pushing it to ipfs
+    # #before we push it to ipfs we will check if there is a contract
+    # #and if the CID's are differnt. If they are the same
+    # #we don't need to push
+    # res = client.add('../{:s}'.format(repo_name), recursive=True, only_hash=True)
+    # client.close()
+    # # IPFS STUFF STOP
+    # # we are pushing if remote
+    # if res[-1]['Hash'] not in remote_cid_history:
+    #     print('Pushing content')
+    #     res = client.add('../{:s}'.format(repo_name), recursive=True)
+    #     push_new_cid(res[-1]['Hash'])
+    # else:
+    #     print('There is nothing to push')
+    # for file in all_files_to_move:
+    #     #print(file)
+    #     # copying the files back to their source :)
+    #     shutil.move('/tmp/' + file[2:], file[2:])
+    #     # TODO: Do we need to remove the dirs? Should do that I guess
         
     ### ORIGINAL CODE
     #if username is None:
