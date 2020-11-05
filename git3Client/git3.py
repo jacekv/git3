@@ -474,7 +474,6 @@ def push_new_cid(cid):
 
     w3 = get_web3_provider()
     nonce = w3.eth.getTransactionCount(USER_ADDRESS)
-    #priv_key= bytes.fromhex(getpass('Provide priv key: '))
     priv_key = bytes.fromhex(os.environ['PRIV_KEY'])
     create_push_tx = repo_contract.functions.push(cid).buildTransaction({
         'chainId': 80001,
@@ -1042,16 +1041,12 @@ def __push_commit(commit_hash):
     }
     for line in lines:
         if line.startswith('tree '):
-            print('We found a tree')
             tree_hash = line[5:45]
             commit_to_push['tree'] = __push_tree(tree_hash, '.')
         elif line.startswith('parent '):
-            print('We found a parent')
-            print('Parent hash', line[7:47])
             parent_cid = __push_commit(line[7:47])
             commit_to_push['parents'].append(parent_cid)
         elif line.startswith('author'):
-            print('We found an author')
             splitted_line = line.split(' ')
             commit_to_push['author'] = {
                 'name': splitted_line[1],
@@ -1060,7 +1055,6 @@ def __push_commit(commit_hash):
                 'date_timestamp': splitted_line[4],
             }
         elif line.startswith('committer'):
-            print('WE found an commiter')
             splitted_line = line.split(' ')
             commit_to_push['committer'] = {
                 'name': splitted_line[1],
@@ -1069,7 +1063,6 @@ def __push_commit(commit_hash):
                 'date_timestamp': splitted_line[4],
             }
         else:
-            print('This might be the commit message')
             if line == '':
                 space_commit_message = True
                 
@@ -1088,13 +1081,11 @@ def push(git_url):
         return
     local_sha1 = get_local_master_hash()
     remote_hash = get_remote_master_hash()
+    print('Remote hash', remote_hash)
     if remote_hash == None:
         print('Remote is None, so we can push :)')
         master_cid = __push_commit(local_sha1)
-        # parents = (l[7:47] for l in lines if l.startswith('parent '))
-        # for parent in parents:
-        #     print('Parent', parent)
-        # #TODO: we need to create a commit object.
+        push_new_cid(master_cid)
     print('Local sha1', local_sha1)
     print('Remote CID', get_remote_master_hash())
     # entries = read_index()
