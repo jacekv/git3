@@ -28,7 +28,7 @@ GIT_TREE_MODE = 16384
 RPC_ADDRESS = 'https://rpc-mumbai.matic.today'
 GIT_FACTORY_ADDRESS = '0x3bFF586A6Cab36Bb87Da89df1d9578691e3328a1'
 USER_ADDRESS = '0xeC41371D14F7be781301FdD2B39556e7F353D201'
-IPFS_CONNECTION = '/ip4/127.0.0.1/tcp/5001'
+IPFS_CONNECTION = '/dns/ipfs.infura.io/tcp/5001/https'
 FACTORY_ABI = '''
 [
 	{
@@ -141,7 +141,6 @@ FACTORY_ABI = '''
 	}
 ]
 '''
-
 
 REPOSITORY_ABI = '''
 [
@@ -287,6 +286,8 @@ REPOSITORY_ABI = '''
 ]
 '''
 
+#used as global ipfshttpclient
+client = None
 
 class NoRepositoryError(Exception):
     """
@@ -498,11 +499,10 @@ def clone(repo_name):
     repo_contract = get_repository_contract(git_repo_address)
     headCid = repo_contract.functions.headCid().call()
     print('Cloning {:s}'.format(repo_name))
-    client = ipfshttpclient.connect(IPFS_CONNECTION)
-    #client = ipfshttpclient.connect('/dns/ipfs.infura.io/tcp/5001/https')
+    #client = ipfshttpclient.connect(IPFS_CONNECTION)
     client.get(headCid)
     os.rename(headCid, repo_name)
-    client.close()
+    #client.close()
     print('{:s} cloned'.format(repo_name))
     
 def get_factory_contract():
@@ -1003,7 +1003,6 @@ def __push_tree(tree_hash, folder_name):
     tree_entries = []
     #TODO: This has to be done somewhere else, because I will have a recursive call and don't want to
     #connect and disconnect all the time
-    client = ipfshttpclient.connect('/dns/ipfs.infura.io/tcp/5001/https')
     for entry in entries:
         if entry[0] == GIT_NORMAL_FILE_MODE:
             obj_type, blob = read_object(entry[2])
@@ -1027,7 +1026,6 @@ def __push_tree(tree_hash, folder_name):
         'name': folder_name
     }
     cid = client.add_json(tree_to_push)
-    client.close()
     return cid
 
 def __push_commit(commit_hash, remote_commit_hash, remote_commit_cid):
@@ -1077,9 +1075,7 @@ def __push_commit(commit_hash, remote_commit_hash, remote_commit_cid):
                 
             if space_commit_message:
                 commit_to_push['commit_message'] = line
-    client = ipfshttpclient.connect('/dns/ipfs.infura.io/tcp/5001/https')
     commit_cid = client.add_json(commit_to_push)
-    client.close()
     print('Commit CID', commit_cid, commit_to_push)
     return commit_cid
             
@@ -1092,9 +1088,7 @@ def push(git_url):
     remote_cid = get_remote_master_hash()
     if remote_cid != None:
         # since there is already something pushed, we will have to get the remote cid
-        client = ipfshttpclient.connect('/dns/ipfs.infura.io/tcp/5001/https')
         remote_commit = client.get_json(remote_cid)
-        client.close()
         remote_sha1 = remote_commit['sha1']
     else:
         remote_sha1 = None
@@ -1103,7 +1097,15 @@ def push(git_url):
         print('There is nothing to push')
     else:
         push_new_cid(master_cid)
-    
+
+def connect_to_infura():
+    global client
+    client = ipfshttpclient.connect(IPFS_CONNECTION)
+
+def close_to_infura():
+    global client
+    client.close()
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     sub_parsers = parser.add_subparsers(dest='command', metavar='command')
@@ -1206,7 +1208,9 @@ if __name__ == '__main__':
     elif args.command == 'ls-files':
         ls_files(details=args.stage)
     elif args.command == 'push':
-        push(args.git_url)#, username=args.username, password=args.password)
+        connect_to_infura()
+        push(args.git_url)
+        close_to_infura()
     elif args.command == 'status':
         status()
     else:
