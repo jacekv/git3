@@ -490,7 +490,80 @@ def push_new_cid(cid):
     else:
         print('Pushing failed')
 
+def __clone(cid, repo_name, unpack_files, unpack_path):
+    """
+    Private clone function, which downloads all objects and unpacks the file if flag is set.
+
+    cid - Cid to get the object from ipfs
+    unpack_files - boolean to indicate if a file should be unpacked or not. Unpacked means a file will be created in the
+        repository and the content will be written to it
+    unpack_path - Path where to create the file
+    """
+    remote_object = client.get_json(cid)
+    if remote_object['type'] == 'commit':
+        author = '{} {}'.format(remote_object['author']['name'], remote_object['author']['email'])
+        author_time = '{} {}'.format(remote_object['author']['date_seconds'], remote_object['author']['date_timestamp'])
+
+        committer = '{} {}'.format(remote_object['committer']['name'], remote_object['committer']['email'])
+        committer_time = '{} {}'.format(remote_object['committer']['date_seconds'], remote_object['committer']['date_timestamp'])
+        lines = []
+        
+        lines = ['tree ' + __clone(remote_object['tree'], repo_name, unpack_files, unpack_path)]
+        if remote_object['parents']:
+            for parent in remote_object['parents']:
+                remote_commit_sha1 = __clone(parent, repo_name, False, unpack_path)
+                lines.append('parent ' + remote_commit_sha1)
+        lines.append('author {} {}'.format(author, author_time))
+        lines.append('committer {} {}'.format(committer, committer_time))
+        lines.append('')
+        lines.append(remote_object['commit_message'])
+        lines.append('')
+        data = '\n'.join(lines).encode()
+        obj_type = 'commit'
+    elif remote_object['type'] == 'tree':
+        tree_entries = []
+        for entry in remote_object['entries']:
+            if entry['mode'] == GIT_NORMAL_FILE_MODE:
+                # writing the blob file 
+                blob = client.get_json(entry['cid'])
+                # if true, we will write the content to a file
+                if unpack_files:
+                    path = '{}/{}'.format(unpack_path, entry['name'])
+                    if not os.path.exists(path):
+                        os.makedirs(os.path.dirname(path), exist_ok=True)
+                    write_file(path, blob['content'].encode())
+                header = '{} {}'.format('blob', len(blob['content'])).encode()
+                full_data = header + b'\x00' + blob['content'].encode()
+                path = os.path.join(repo_name, '.git', 'objects', blob['sha1'][:2], blob['sha1'][2:])
+                if not os.path.exists(path):
+                    os.makedirs(os.path.dirname(path), exist_ok=True)
+                    write_file(path, zlib.compress(full_data))
+                # collection information for the tree object
+                mode_path = '{:o} {}'.format(GIT_NORMAL_FILE_MODE, entry['name']).encode()
+                tree_entry = mode_path + b'\x00' + blob['sha1'].encode()
+            elif entry['mode'] == GIT_TREE_MODE:
+                tree_hash = __clone(entry['cid'], repo_name, unpack_files, '{}/{}'.format(unpack_path, entry['name']))
+                mode_path = '{:o} {}'.format(GIT_TREE_MODE, entry['name']).encode()
+                tree_entry = mode_path + b'\x00' + tree_hash.encode()
+            tree_entries.append(tree_entry)
+
+        data = b''.join(tree_entries)
+        obj_type = 'tree'
+        
+    header = '{} {}'.format(obj_type, len(data)).encode()
+    full_data = header + b'\x00' + data
+    path = os.path.join(repo_name, '.git', 'objects', remote_object['sha1'][:2], remote_object['sha1'][2:])
+    if not os.path.exists(path):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        write_file(path, zlib.compress(full_data))
+    return remote_object['sha1']
+
 def clone(repo_name):
+    """
+    Cloning a remote repository on the local machine.
+
+    repo_name: Repository to be cloned
+    """
     git_factory = get_factory_contract()
     git_repo_address = git_factory.functions.gitRepositories(repo_name).call()
     if git_repo_address == '0x0000000000000000000000000000000000000000':
@@ -499,10 +572,22 @@ def clone(repo_name):
     repo_contract = get_repository_contract(git_repo_address)
     headCid = repo_contract.functions.headCid().call()
     print('Cloning {:s}'.format(repo_name))
-    #client = ipfshttpclient.connect(IPFS_CONNECTION)
-    client.get(headCid)
-    os.rename(headCid, repo_name)
-    #client.close()
+    init(repo_name)
+    master_sha1 = __clone(headCid, repo_name, True, repo_name)
+    # write to refs
+    master_path = os.path.join(repo_name, '.git', 'refs', 'heads', 'master')
+    write_file(master_path, (master_sha1 + '\n').encode())
+
+    #chaning into repo, also for add function, in order to find the index file
+    os.chdir(repo_name)
+    # collecting all files from the repo in order to create the index file
+    files_to_add = []
+    for path, subdirs, files in os.walk('.'):
+        for name in files:
+            # we don't want to add the files under .git to the index
+            if not path.startswith('./.git'):
+                files_to_add.append(os.path.join(path, name)[2:])
+    add(files_to_add)
     print('{:s} cloned'.format(repo_name))
     
 def get_factory_contract():
@@ -699,6 +784,7 @@ def add(paths):
     paths = [p.replace('\\', '/') for p in paths]
     all_entries = []
     # transfer paths to relative paths. Relative to the repository root
+    # in case we are in a subdirectory and add a file
     paths = list(map(lambda path: os.path.relpath(os.path.abspath(path), repo_root_path), paths))
 
     try:
@@ -999,31 +1085,37 @@ def create_pack(objects):
 
 
 def __push_tree(tree_hash, folder_name):
+    print('Tree hash', tree_hash)
     entries = read_tree(tree_hash)
     tree_entries = []
-    #TODO: This has to be done somewhere else, because I will have a recursive call and don't want to
-    #connect and disconnect all the time
+    print('Entries', entries)
     for entry in entries:
         if entry[0] == GIT_NORMAL_FILE_MODE:
             obj_type, blob = read_object(entry[2])
             assert obj_type == 'blob'
             blob_to_push = {
                 'type': 'blob',
-                'content': blob.decode()
+                'content': blob.decode(),
+                'sha1': entry[2]
             }
             cid = client.add_json(blob_to_push)
-            # client.get_json(cid)
             tree_entries.append({
                 'mode': entry[0],
                 'name': entry[1],
                 'cid': cid
             })
         elif entry[0] == GIT_TREE_MODE:
-            print('We found a tree object')
+            cid = __push_tree(entry[2], entry[1])
+            tree_entries.append({
+                'mode': entry[0],
+                'name': entry[1],
+                'cid': cid
+            })
     tree_to_push = {
         'type': 'tree',
         'entries': tree_entries,
-        'name': folder_name
+        'name': folder_name,
+        'sha1': tree_hash
     }
     cid = client.add_json(tree_to_push)
     return cid
@@ -1085,7 +1177,8 @@ def push(git_url):
         print('Repository has not been registered yet. Use\n\n`git create`\n\nbefore you push')
         return
     local_sha1 = get_local_master_hash()
-    remote_cid = get_remote_master_hash()
+    # remote_cid = get_remote_master_hash()
+    remote_cid = None
     if remote_cid != None:
         # since there is already something pushed, we will have to get the remote cid
         remote_commit = client.get_json(remote_cid)
@@ -1197,7 +1290,9 @@ if __name__ == '__main__':
     elif args.command == 'create':
         create()
     elif args.command == 'clone':
+        connect_to_infura()
         clone(args.name)
+        close_to_infura()
     elif args.command == 'diff':
         diff()
     elif args.command == 'hash-object':
