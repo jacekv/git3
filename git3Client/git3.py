@@ -432,13 +432,52 @@ def cat_file(mode, sha1_prefix):
     else:
         raise ValueError('unexpected mode {!r}'.format(mode))
 
-def __read_private_key(path):
+def __get_value_from_config_file(key):
     """
-    Reads the private key from a pem file and returns it
+    Reads the values from the git config file and returns the value for the given key
+    Key can be: email, name or IdentityFile
     """
-    #TODO: What about encrypted pem files?
-    content = read_file(path)
-    key = ECC.import_key(content)
+    # we are going to check if there is a config file in the repo.
+    root_path = get_repo_root_path()
+    config_path = '{}/config'.format(root_path)
+    if not os.path.isfile(config_path):
+        # if not, use the global config file
+        config_path = '~/.gitconfig'
+    content = read_file(os.path.expanduser(config_path))
+    splitted_config = content.decode().split('\n')
+    user = False
+    for entry in splitted_config:
+        if entry == '[user]':
+            user = True
+        elif entry.startswith('['):
+            user = False
+        elif user:
+            entry = entry.replace('\t', '')
+            entry = entry.strip()
+            if entry.startswith(key):
+                return entry.split('=')[1].strip()
+
+def __read_private_key():
+    """
+    Reads the private key from a (ebcrypted) pem file and returns it
+    """
+    identity_file_path = __get_value_from_config_file('IdentityFile')
+    content = read_file(os.path.expanduser(identity_file_path))
+    password = ''
+    try:
+        key = ECC.import_key(content)
+    except ValueError as ve:
+        if str(ve) == 'PEM is encrypted, but no passphrase available':
+            password = input('Password to decrypt PEM file is required: ')
+        else:
+            print('Unable to load private key')
+            sys.exit(1)
+    try:
+        key = ECC.import_key(content, password)
+    except ValueError as ve:
+        print('Unable to decrypt PEM file. Password is incorrect')
+        sys.exit(1)
+    print(hex(key.d)[2:])
     return hex(key.d)[2:]
 
 
@@ -451,8 +490,8 @@ def create():
         return
     #TODO: calc address from piv key :)
     nonce = w3.eth.getTransactionCount(USER_ADDRESS)
-    #priv_key= bytes.fromhex(getpass('Provide priv key: '))
-    priv_key = bytes.fromhex(os.environ['PRIV_KEY'])
+
+    priv_key = bytes.fromhex(__read_private_key())
     create_repo_tx = git_factory.functions.createRepository(repo_name).buildTransaction({
         'chainId': 80001,
         'gas': 1947750,
@@ -486,7 +525,7 @@ def push_new_cid(cid):
 
     w3 = get_web3_provider()
     nonce = w3.eth.getTransactionCount(USER_ADDRESS)
-    priv_key = bytes.fromhex(os.environ['PRIV_KEY'])
+    priv_key = bytes.fromhex(__read_private_key())
     create_push_tx = repo_contract.functions.push(cid).buildTransaction({
         'chainId': 80001,
         'gas': 746427,
@@ -1211,9 +1250,6 @@ def close_to_infura():
     client.close()
 
 if __name__ == '__main__':
-    
-    __read_private_key('matic')
-    sys.exit(0)
     parser = argparse.ArgumentParser()
     sub_parsers = parser.add_subparsers(dest='command', metavar='command')
     sub_parsers.required = True
