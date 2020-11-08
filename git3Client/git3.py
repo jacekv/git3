@@ -7,6 +7,7 @@ Released under a permissive MIT license (see LICENSE.txt).
 from web3 import Web3
 from getpass import getpass
 from pathlib import Path
+from Crypto.PublicKey import ECC
 
 import argparse, collections, difflib, enum, hashlib, operator, os, stat
 import struct, sys, time, urllib.request, zlib
@@ -430,6 +431,16 @@ def cat_file(mode, sha1_prefix):
             assert False, 'unhandled object type {!r}'.format(obj_type)
     else:
         raise ValueError('unexpected mode {!r}'.format(mode))
+
+def __read_private_key(path):
+    """
+    Reads the private key from a pem file and returns it
+    """
+    #TODO: What about encrypted pem files?
+    content = read_file(path)
+    key = ECC.import_key(content)
+    return hex(key.d)[2:]
+
 
 def create():
     git_factory = get_factory_contract()
@@ -1200,6 +1211,9 @@ def close_to_infura():
     client.close()
 
 if __name__ == '__main__':
+    
+    __read_private_key('matic')
+    sys.exit(0)
     parser = argparse.ArgumentParser()
     sub_parsers = parser.add_subparsers(dest='command', metavar='command')
     sub_parsers.required = True
