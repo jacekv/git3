@@ -941,6 +941,9 @@ def commit(message, author=None):
     tree = write_tree()
     parent = get_local_master_hash()
     if author is None:
+        #TODO: We need to put that in after some time
+        #user_name = __get_value_from_config_file('name')
+        #user_email = __get_value_from_config_file('email')
         author = '{} <{}>'.format(
                 os.environ['GIT_AUTHOR_NAME'], os.environ['GIT_AUTHOR_EMAIL'])
     timestamp = int(time.mktime(time.localtime()))
@@ -1021,7 +1024,6 @@ def get_remote_master_hash():
     if headCid == '':
         return None
     return headCid
-
 
 def read_tree(sha1=None, data=None):
     """Read tree object with given SHA-1 (hex string) or data, and return list
@@ -1225,6 +1227,7 @@ def push(git_url):
         remote_sha1 = remote_commit['sha1']
     else:
         remote_sha1 = None
+
     if local_sha1 == remote_sha1:
         print('There is nothing to push')
         return
@@ -1236,6 +1239,25 @@ def push(git_url):
         print('There is nothing to push')
     else:
         push_new_cid(master_cid)
+
+def pull():
+    print('Pulling')
+    remote_cid = get_remote_master_hash()
+    if remote_cid != None:
+        # since there is already something pushed, we will have to get the remote cid
+        remote_commit = client.get_json(remote_cid)
+        remote_sha1 = remote_commit['sha1']
+    else:
+        print('Nothing to pull')
+        return
+    
+    print('Remote sha1', remote_sha1)
+    ##TODO: iterate over each commit and check if the file already is saved in the local .git folder. If not, load the 
+    ##objects and save those. Once we see that the sha1 exits in local repository, we stop
+    ##We also need to check, if there are some files in the worktree which need to be commited first. Only after that
+    ##we can can pull
+    ##We need to check what happens in the following case: Remote repository is ahead and there is something to pull
+    ##We have files in the local repository which need to be commited. We commit and pull. What happens?
 
 def connect_to_infura():
     global client
@@ -1319,6 +1341,9 @@ if __name__ == '__main__':
             #help='username to use for authentication (uses GIT_USERNAME '
                  #'environment variable by default)')
 
+    sub_parser = sub_parsers.add_parser('pull',
+            help='pulls remote commits')
+
     sub_parser = sub_parsers.add_parser('status',
             help='show status of working copy')
 
@@ -1351,6 +1376,10 @@ if __name__ == '__main__':
     elif args.command == 'push':
         connect_to_infura()
         push(args.git_url)
+        close_to_infura()
+    elif args.command == 'pull':
+        connect_to_infura()
+        pull()
         close_to_infura()
     elif args.command == 'status':
         status()

@@ -1,0 +1,4 @@
+Test Pull:
+Check: local repo is 2 commits ahead if also only the two are pushed
+Check: local repo is behind. Notify the user
+Check: local repo and remote are equal

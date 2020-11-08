@@ -1,2 +1,6 @@
   - During git3.py add -> check if .git folder available
-  - Test commiting with parents!
+  - Branching
+  - Merging
+  - Pull
+  - calc address from priv key
+  - estimate gas for tx
