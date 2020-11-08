@@ -461,6 +461,8 @@ def __read_private_key():
     """
     Reads the private key from a (ebcrypted) pem file and returns it
     """
+    # TODO: this is temp and has to be removed later
+    return os.environ['PRIV_KEY']
     identity_file_path = __get_value_from_config_file('IdentityFile')
     content = read_file(os.path.expanduser(identity_file_path))
     password = ''
@@ -477,7 +479,6 @@ def __read_private_key():
     except ValueError as ve:
         print('Unable to decrypt PEM file. Password is incorrect')
         sys.exit(1)
-    print(hex(key.d)[2:])
     return hex(key.d)[2:]
 
 
@@ -522,7 +523,7 @@ def push_new_cid(cid):
     repo_name = read_repo_name()
     git_repo_address = git_factory.functions.gitRepositories(repo_name).call()
     repo_contract = get_repository_contract(git_repo_address)
-
+    print('Yay')
     w3 = get_web3_provider()
     nonce = w3.eth.getTransactionCount(USER_ADDRESS)
     priv_key = bytes.fromhex(__read_private_key())
@@ -1004,23 +1005,6 @@ def http_request(url, username, password, data=None):
     f = opener.open(url, data=data)
     return f.read()
 
-
-# def get_remote_master_hash(git_url, username, password):
-#     """Get commit hash of remote master branch, return SHA-1 hex string or
-#     None if no remote commits.
-#     """
-    # url = git_url + '/info/refs?service=git-receive-pack'
-    # response = http_request(url, username, password)
-    # lines = extract_lines(response)
-    # assert lines[0] == b'# service=git-receive-pack\n'
-    # assert lines[1] == b''
-    # if lines[2][:40] == b'0' * 40:
-    #     return None
-    # master_sha1, master_ref = lines[2].split(b'\x00')[0].split()
-    # assert master_ref == b'refs/heads/master'
-    # assert len(master_sha1) == 40
-    # return master_sha1.decode()
-
 def get_remote_master_hash():
     """
     Get commit hash of remote master branch, return CID or None if no remote commits.
@@ -1036,8 +1020,6 @@ def get_remote_master_hash():
     headCid = repo_contract.functions.headCid().call()
     if headCid == '':
         return None
-    #TODO: We will get here the CID. But that is not enough. We will need to have the sha1 hash. So we need to request
-    #the data from IPFS and check the content.
     return headCid
 
 
@@ -1170,6 +1152,15 @@ def __push_tree(tree_hash, folder_name):
     cid = client.add_json(tree_to_push)
     return cid
 
+def __check_if_remote_ahead(remote_sha1):
+    """
+    Check if the remote repository is ahead. It get's the remote sha1 hash and checks if the file exists in the 
+    .git/objects directory. If it does not exist, the remote repository is ahead of the local repository
+    """
+    root_path = get_repo_root_path()
+    path_to_check = os.path.join(root_path, '.git', 'objects', remote_sha1[:2], remote_sha1[2:])
+    return not os.path.isfile(path_to_check) 
+
 def __push_commit(commit_hash, remote_commit_hash, remote_commit_cid):
     """
     Used to push a commit, the tree it references and the blobs to ipfs. 
@@ -1227,14 +1218,19 @@ def push(git_url):
         print('Repository has not been registered yet. Use\n\n`git create`\n\nbefore you push')
         return
     local_sha1 = get_local_master_hash()
-    # remote_cid = get_remote_master_hash()
-    remote_cid = None
+    remote_cid = get_remote_master_hash()
     if remote_cid != None:
         # since there is already something pushed, we will have to get the remote cid
         remote_commit = client.get_json(remote_cid)
         remote_sha1 = remote_commit['sha1']
     else:
         remote_sha1 = None
+    if local_sha1 == remote_sha1:
+        print('There is nothing to push')
+        return
+    elif __check_if_remote_ahead(remote_sha1):
+        print('Remote repository is ahead. Pull the changes first')
+        return
     master_cid = __push_commit(local_sha1, remote_sha1, remote_cid)
     if master_cid == remote_cid:
         print('There is nothing to push')
