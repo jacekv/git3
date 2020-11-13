@@ -636,11 +636,10 @@ def unpack_files_of_commit(repo_name, commit_object, unpack_blobs):
     """
     Takes a commit object and unpacks the trees. Might also unpack blob if the unpack_blobs parameter is set to true.
     repo_name is used in order to know where to find the .git directory and the path to write is used to unpack blobs
-    and write the content into a file.
+    and write the content into a file. Commit_object has to be of the ipfs structure.
     """
     write_commit(commit_object, repo_name)
     tree = client.get_json(commit_object['tree'])
-    print("First tree", tree)
     unpack_files_of_tree(repo_name, repo_name, tree, unpack_blobs)
 
 
@@ -758,20 +757,6 @@ def ls_files(details=False):
         else:
             print(entry.path)
 
-def get_committed_entries():
-    local_sha1 = get_local_master_hash()
-    print('Local sha1', local_sha1)
-    obj_type, data = read_object(local_sha1)
-    assert obj_type == 'commit'
-    splitted_commit = data.decode().splitlines()
-    for line in splitted_commit:
-        print(line)
-        if line.startswith('tree '):
-            tree_sha1 = line[5:]
-            break
-    obj_type, data = read_object(tree_sha1)
-    assert obj_type == 'tree'
-    print(data.decode)
 
 def get_status():
     """
@@ -857,7 +842,6 @@ def write_index(entries):
     digest = hashlib.sha1(all_data).digest()
     write_file(os.path.join(repo_root_path, '.git', 'index'), all_data + digest)
     
-
 
 def get_repo_root_path():
     """
@@ -1297,132 +1281,197 @@ def push(git_url):
     else:
         push_new_cid(master_cid)
 
-# def __pull(remote_cid, repo_name, unpack_files, unpack_path):
-#     remote_object = client.get_json(remote_cid)
-#     print('Remote object type: {}, sha1: {}'.format(remote_object['type'], remote_object['sha1']))
-#     if remote_object['type'] == 'commit':
-#         path_to_check = os.path.join(get_repo_root_path(), '.git', 'objects', remote_object['sha1'][:2], remote_object['sha1'][2:])
-#         # check if the commit exists in our local repository.
-#         if os.path.isfile(path_to_check):
-#             print('Commit exists. No need to pull')
-#             return
-#         author = '{} {}'.format(remote_object['author']['name'], remote_object['author']['email'])
-#         author_time = '{} {}'.format(remote_object['author']['date_seconds'], remote_object['author']['date_timestamp'])
+def get_subtree_entries(tree_sha1, path, entries):
+    """
+    Get's all entries from a tree and writes the path and the hash into entries. 
+    """
+    tree = read_tree(tree_sha1)
+    for entry in tree:
+        if entry[0] == GIT_NORMAL_FILE_MODE:
+            entries.append((os.path.join(path, entry[1]), entry[2]))
+        elif entry[0] == GIT_TREE_MODE:
+            get_subtree_entries(entry[2], entry[1], entries)
 
-#         committer = '{} {}'.format(remote_object['committer']['name'], remote_object['committer']['email'])
-#         committer_time = '{} {}'.format(remote_object['committer']['date_seconds'], remote_object['committer']['date_timestamp'])
-#         lines = []
-        
-#         lines = ['tree ' + __pull(remote_object['tree'], repo_name, True, unpack_path)]
-#         if remote_object['parents']:
-#            for parent in remote_object['parents']:
-#                 remote_commit_sha1 = __clone(parent, repo_name, False, unpack_path)
-#                 lines.append('parent ' + remote_commit_sha1)
-#         lines.append('author {} {}'.format(author, author_time))
-#         lines.append('committer {} {}'.format(committer, committer_time))
-#         lines.append('')
-#         lines.append(remote_object['commit_message'])
-#         lines.append('')
-#         data = '\n'.join(lines).encode()
-#         obj_type = 'commit'
-#     elif remote_object['type'] == 'tree':
-#         tree_entries = []
-#         for entry in remote_object['entries']:
-#             if entry['mode'] == GIT_NORMAL_FILE_MODE:
-#                 # writing the blob file 
-#                 blob = client.get_json(entry['cid'])
-#                 # if true, we will write the content to a file
-#                 if unpack_files:
-#                     path = '{}/{}'.format(unpack_path, entry['name'])
-#                     print()
-#                     print('Path for blob', path)
-#                     # First we check if the file exists already
-#                     if os.path.isfile(path):
-#                         #if the file exists, we are going to compare the hashes
-#                         print('File exists')
-#                         #file exists in local repository
-#                         local_sha1 = hash_object(read_file(path), 'blob', False)
-#                         print('Sha1 of local file', local_sha1)
-#                         print('Sha1 of remote file', blob['sha1'])
-#                         #if the hashes are not equal, the content differes and we will have
-#                         #to show it to the user and mark the differences appropriate
-#                         if local_sha1 != blob['sha1']:
-#                             #TODO: merge
-#                             local_split = read_file(path).decode().splitlines()
-#                             remote_split = blob['content'].splitlines()
-#                             print('Hashes are different for', path)
-#                             print('Remote content', remote_split)
-#                             print('Local content', local_split)
-#                             print()
-#                             print('Openinng file')
-#                             lines_to_write = []
-#                             for remote, local in itertools.zip_longest(remote_split, local_split):
-#                                 if remote == local or local == None or remote == None:
-#                                     if local == None:
-#                                         lines_to_write.append("{}\n".format(remote))
-#                                     else:
-#                                         lines_to_write.append("{}\n".format(local))
-#                                 print('Remote', remote)
-#                                 print('Local', local)
-#                                 print()
-#                             with open(path, 'w') as f:
-#                                 f.writelines(lines_to_write)
-                            
-#                         #if there is no difference, all good and we don't have to do anything
-#                     #if the file does not exist
-#                     elif not os.path.exists(path):
-#                         #we are going to create the directory
-#                         os.makedirs(os.path.dirname(path), exist_ok=True)
-#                         #and write the content to the file
-#                         #write_file(path, blob['content'].encode())
-#                 header = '{} {}'.format('blob', len(blob['content'])).encode()
-#                 full_data = header + b'\x00' + blob['content'].encode()
-#                 path = os.path.join(repo_name, '.git', 'objects', blob['sha1'][:2], blob['sha1'][2:])
-#                 if not os.path.exists(path):
-#                     os.makedirs(os.path.dirname(path), exist_ok=True)
-#                     write_file(path, zlib.compress(full_data))
-#                 # collection information for the tree object
-#                 mode_path = '{:o} {}'.format(GIT_NORMAL_FILE_MODE, entry['name']).encode()
-#                 tree_entry = mode_path + b'\x00' + blob['sha1'].encode()
-#             elif entry['mode'] == GIT_TREE_MODE:
-#                 tree_hash = __clone(entry['cid'], repo_name, unpack_files, '{}/{}'.format(unpack_path, entry['name']))
-#                 mode_path = '{:o} {}'.format(GIT_TREE_MODE, entry['name']).encode()
-#                 tree_entry = mode_path + b'\x00' + tree_hash.encode()
-#             tree_entries.append(tree_entry)
+def is_stage_empty():
+    """
+    Comapres the entries from the last commit object with the ones in the index file. If there is a difference, 
+    the stage is not empty. If there is a difference, the stage is not empty
+    """
+    local_sha1 = get_local_master_hash()
+    obj_type, data = read_object(local_sha1)
+    assert obj_type == 'commit'
+    splitted_commit = data.decode().splitlines()
+    #We want to get the tree hash
+    for line in splitted_commit:
+        if line.startswith('tree '):
+            tree_sha1 = line[5:]
+            break
+    #so that we can read the top tree object
+    committed_entries = []
+    get_subtree_entries(tree_sha1, '', committed_entries)
+    index = read_index()
+    for indexEntry in index:
+        # found is used for entries which have not been committed yet. 
+        found = False
+        for treeEntry in committed_entries:
+            if treeEntry[0] == indexEntry.path: 
+                if treeEntry[1] != indexEntry.sha1.hex():
+                    return False
+                found = True
+        # if found is false, the entry has not been committed yet and there is a difference between staging and commit
+        if not found:
+            return False
+    return True
 
-#         data = b''.join(tree_entries)
-#         obj_type = 'tree'
-        
-#     header = '{} {}'.format(obj_type, len(data)).encode()
-#     full_data = header + b'\x00' + data
-#     path = os.path.join(repo_name, '.git', 'objects', remote_object['sha1'][:2], remote_object['sha1'][2:])
-#     if not os.path.exists(path):
-#         os.makedirs(os.path.dirname(path), exist_ok=True)
-#         #write_file(path, zlib.compress(full_data))
-#     return remote_object['sha1']
+def get_all_local_commits(commit_hash):
+    """
+    Returns a list contains all hashes of the local commits
+    """
+    all_commits = []
+    parents = []
+    #local_sha1 = get_local_master_hash()
+    all_commits.append(commit_hash)
+    obj_type, commit = read_object(commit_hash)
+    lines = commit.decode().splitlines()
+    for l in lines:
+        if l.startswith('parent '):
+            parents.append(l[7:47])
+    while len(parents) > 0:
+        parent = parents.pop()
+        all_commits.append(parent)
+        obj_type, commit = read_object(parent)
+        lines = commit.decode().splitlines()
+        for l in lines:
+            if l.startswith('parent '):
+                parents.append(l[7:47])
+    return all_commits
 
 def pull():
     print('Pulling')
     changed, _, _ = get_status()
-    if len(changed) > 0:
+    # we are checking if there a changed files in the working copy or files staged which have not been committed.
+    # if one case is true, pull won't be executed
+    if len(changed) > 0 or not is_stage_empty:
         print("You have local changes. Add and commit those first")
         return
-    get_committed_entries()
-    #TODO: We have to see if there is a difference between stage (index) and the recent commit. If there is, than
-    #there are uncommitted files
-    #difference = diff()
-    #remote_cid = get_remote_master_hash()
-    #print('remote cid', remote_cid)
-    #repo_root_path = get_repo_root_path()
-    #__pull(remote_cid, repo_root_path, True, repo_root_path)
-   
     
-    ##TODO: iterate over each commit and check if the file already is saved in the local .git folder. If not, load the 
-    ##objects and save those. Once we see that the sha1 exits in local repository, we stop
-    ##We also need to check, if there are some files in the worktree which need to be commited first. Only after that
-    ##we can can pull
-    ##We need to check what happens in the following case: Remote repository is ahead and there is something to pull
-    ##We have files in the local repository which need to be commited. We commit and pull. What happens?
+    repo_name = read_repo_name()
+    git_factory = get_factory_contract()
+    git_repo_address = git_factory.functions.gitRepositories(repo_name).call()
+    if git_repo_address == '0x0000000000000000000000000000000000000000':
+        print('No such repository')
+        return
+    repo_contract = get_repository_contract(git_repo_address)
+    headCid = repo_contract.functions.headCid().call()
+    
+    remote_commits = get_all_remote_commits(headCid, repo_name)
+    #extract only the sha1 hash
+    remote_commits_sha1 = [e['sha1'] for e in remote_commits]
+    print(remote_commits_sha1)
+
+    local_commits = get_all_local_commits()
+    print(local_commits)
+    if local_commits[0] == remote_commits_sha1[0]:
+        print('Already up to date')
+        return
+    remote_to_local_difference = set(remote_commits_sha1) - set(local_commits)
+    local_to_remote_difference = set(local_commits) - set(remote_commits_sha1)
+    if len(local_to_remote_difference) == 0:
+        print('We can download and unpack all of it :)')
+        print(remote_to_local_difference)
+    #print(local_to_remote_difference, len(local_to_remote_difference))
+    #TODO: get all remote and local commits and get the difference
+    #use the difference to know which commits and trees need to be downloaded
+    #Go through the most recent commit, get the trees and files and merge those with the local files
+    #Go throug all other commits and unpack the commits and trees
+
+def fetch():
+    """
+    Downloads commits and objects from the remote repository
+    """
+    repo_name = read_repo_name()
+    git_factory = get_factory_contract()
+    git_repo_address = git_factory.functions.gitRepositories(repo_name).call()
+    if git_repo_address == '0x0000000000000000000000000000000000000000':
+        print('No such repository')
+        return
+    repo_contract = get_repository_contract(git_repo_address)
+    headCid = repo_contract.functions.headCid().call()
+    
+    remote_commits = get_all_remote_commits(headCid, repo_name)
+    #extract only the sha1 hash
+    remote_commits_sha1 = [e['sha1'] for e in remote_commits]
+
+    local_sha1 = get_local_master_hash()
+    local_commits = get_all_local_commits(local_sha1)
+    if local_commits[0] == remote_commits_sha1[0]:
+        return
+    remote_to_local_difference = set(remote_commits_sha1) - set(local_commits)
+    for commit_hash in remote_to_local_difference:
+        for commit in remote_commits:
+            if commit['sha1'] == commit_hash:
+                unpack_files_of_commit('.', commit, False)
+    data = '{}\t\t{}\'{}\' of {}\n'.format(remote_commits_sha1[0], 'branch ', 'main', git_repo_address).encode()
+    repo_root_path = get_repo_root_path()
+    path = os.path.join(repo_root_path, '.git', 'FETCH_HEAD')
+    if not os.path.exists(path):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+    write_file(path, data)
+    path = os.path.join(repo_root_path, '.git', 'refs/remote/origin/main')
+    if not os.path.exists(path):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+    write_file(path, remote_commits_sha1[0].encode())
+
+def __unpack_object(object_hash, repo_path, path_to_write):
+    """
+    Takes an tress sha1 hash and read the local object. It iterates over the entries and writes the content of blobs
+    to the repository. In case it comes across another tree object, it makes a recursive call.
+    """
+    #TODO: have to make it more robust. What if it is not a tree object?
+    entries = read_tree(object_hash)
+    for entry in entries:
+        if entry[0] == GIT_NORMAL_FILE_MODE:
+            object_path = os.path.join(repo_path, '.git/objects', entry[2][:2], entry[2][2:])
+            full_data = zlib.decompress(read_file(object_path))
+            nul_index = full_data.index(b'\x00')
+            header = full_data[:nul_index]
+            obj_type, size_str = header.decode().split()
+            size = int(size_str)
+            data = full_data[nul_index + 1:]
+            data_path = os.path.join(path_to_write, entry[1])
+            if not os.path.exists(data_path):
+                os.makedirs(os.path.dirname(data_path), exist_ok=True)
+            write_file(data_path, data)
+        elif entry[0] == GIT_TREE_MODE:
+            __unpack_object(entry[2], repo_path, os.path.join(path_to_write, entry[1]))
+        
+
+def merge():
+    """
+    Merges two branches. Since we currently support only one branch, merge takes the commit from FETCH_HEAD for now
+    """
+    repo_root_path = get_repo_root_path()
+    fetch_head_path = os.path.join(repo_root_path, '.git', 'FETCH_HEAD')
+    fetch_head = read_file(fetch_head_path)
+
+    remote_sha1 = fetch_head.decode()[0:40]
+    local_sha1 = get_local_master_hash()
+
+    if remote_sha1 == local_sha1:
+       return
+
+    remote_commits = set(get_all_local_commits(remote_sha1))
+    local_commits = set(get_all_local_commits(local_sha1))
+    
+    difference = local_commits - remote_commits
+    
+    if len(difference) == 0:
+        print('Fast forward')
+        path = os.path.join(repo_root_path, '.git/refs/heads/master')
+        write_file(path, "{}\n".format(remote_sha1).encode())
+        obj_type, commit = read_object(remote_sha1)
+        tree_sha1 = commit.decode().splitlines()[0][5:45]
+        __unpack_object(tree_sha1, repo_root_path, repo_root_path)
 
 def connect_to_infura():
     global client
@@ -1495,6 +1544,12 @@ if __name__ == '__main__':
             #help='show object details (mode, hash, and stage number) in '
                  #'addition to path')
 
+    sub_parser = sub_parsers.add_parser('fetch',
+            help='Download object and refs from another repository')
+
+    sub_parser = sub_parsers.add_parser('merge',
+            help='Join two or more development histories together')
+
     sub_parser = sub_parsers.add_parser('push',
             help='push master branch to given git server URL')
     sub_parser.add_argument('git_url',
@@ -1531,6 +1586,10 @@ if __name__ == '__main__':
         close_to_infura()
     elif args.command == 'diff':
         diff()
+    elif args.command == 'fetch':
+        connect_to_infura()
+        fetch()
+        close_to_infura()
     elif args.command == 'hash-object':
         sha1 = hash_object(read_file(args.path), args.type, write=args.write)
         print(sha1)
@@ -1538,6 +1597,8 @@ if __name__ == '__main__':
         init(args.repo)
     elif args.command == 'ls-files':
         ls_files(details=args.stage)
+    elif args.command == 'merge':
+        merge()
     elif args.command == 'push':
         connect_to_infura()
         push(args.git_url)
