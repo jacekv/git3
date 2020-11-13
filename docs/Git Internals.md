@@ -1,11 +1,19 @@
-http://jwiegley.github.io/git-from-the-bottom-up/
-http://shafiul.github.io/gitbook/1_the_git_object_model.html
-
 This file contains write downs about my findings on how git works internaly and sources which I used to read up on git internals. I am using it as a write up. If there is anything wrong, feel free to open an issue so that I can improve it and gain a better understanding :)
 
 # Git
 
-
+# .git Folder
+```
+ .git
+  |--> objects                 contains data for each commit
+  |--> refs
+  |    |--> heads
+  |    |    |--> master        file containing current commit of local master branch
+  |    |--> remotes
+  |    |    |--> origin
+  |    |    |    |--> master   file containing current commit of remote origin's master branch 
+  |--> FETCH-HEAD              file updated by git fetch, contains info of what was fetched
+```
 ## Git Add
 
 
@@ -108,3 +116,41 @@ You is a usefull terminal command to read internal git objects:
 python2 -c "import zlib,sys;sys.stdout.write(zlib.decompress(sys.stdin.read()))"   <.git/objects/9a/1462e447d986840ba13ce87e8b22160e74e099 | hd
 ```
 
+# Git Fetch
+
+ * downloads all remote commits, trees and blobs
+ * writes the sha1 hash of the remote tip into .git/FETCH_HEAD
+   The exact entry is: `sha1    branch 'master' of url`
+
+# Git Merge
+## Fast-Forward
+We have a master branch and create a new branch. There we add a new file, add it and commit it. Next, we are going to merge the new 
+branch into the master branch. Since we have not performed any new commit on the master branch after creating the new branch, our
+branches are not diverged and master just started pointing to the commit where the new branch is currently poining to.
+![Image of Yaktocat](./artifacts/fastforward.png)[3]
+
+## Non Fast Forward Merge
+Here we are going to explain how non fast forward merge, also true merge or 3way merge called, works.
+We are now in the following situation:
+![Image of Yaktocat](./artifacts/nonfastforwardmerge.png)[3]
+
+The branches diverged. 
+
+If we merge the new branch into the master branch, we will get a new commit, which has two parents:
+![Image of Yaktocat](./artifacts/mergecommit.png)[3]
+
+But how are the files merged?
+
+Merge commits points to a new tree which is created using recursive merge strategy (default merge strategy for no fast forward merge), which in turn points to older tree and blobs or new blobs created during merge process.
+Incase of any merge conflicts that are resolved are under vicinity of tree associated with merge commit. Below is complete git tree diagram showing merge commit.
+
+One more thing which generally creates confusion among developers is how in git merge same file edits handled in different branches? During merge process the git merges the file snapshot line by line and creates new blob snapshot automatically unless it finds a conflict.
+Conflict happens if during merge process edit/diffs are found on same line in the same file. When you resolve the conflict the blob associated with new edits is referenced in merge commit tree.
+
+
+# Sources
+  [1] http://jwiegley.github.io/git-from-the-bottom-up/
+
+  [2] http://shafiul.github.io/gitbook/1_the_git_object_model.html
+
+  [3] https://medium.com/@paritosh90/git-internals-merge-2fe923d0c0c6
