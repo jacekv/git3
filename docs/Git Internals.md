@@ -154,3 +154,5 @@ Conflict happens if during merge process edit/diffs are found on same line in th
   [2] http://shafiul.github.io/gitbook/1_the_git_object_model.html
 
   [3] https://medium.com/@paritosh90/git-internals-merge-2fe923d0c0c6
+
+  [4] 3-way merge:  https://www.mercurial-scm.org/pipermail/mercurial-devel/2006-November/000322.html
