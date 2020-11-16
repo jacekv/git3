@@ -312,12 +312,14 @@ class ObjectType(enum.Enum):
 
 def read_file(path):
     """Read contents of file at given path as bytes."""
+    print('Reading file from:', path)
     with open(path, 'rb') as f:
         return f.read()
 
 
 def write_file(path, data):
     """Write data bytes to file at given path."""
+    print('Writing file to:', path)
     with open(path, 'wb') as f:
         f.write(data)
 
@@ -377,7 +379,8 @@ def find_object(sha1_prefix):
     """
     if len(sha1_prefix) < 2:
         raise ValueError('hash prefix must be 2 or more characters')
-    obj_dir = os.path.join('.git', 'objects', sha1_prefix[:2])
+    repo_root_path = get_repo_root_path()
+    obj_dir = os.path.join(repo_root_path, '.git', 'objects', sha1_prefix[:2])
     rest = sha1_prefix[2:]
     objects = [name for name in os.listdir(obj_dir) if name.startswith(rest)]
     if not objects:
@@ -593,6 +596,7 @@ def unpack_files_of_tree(repo_name, path_to_write, tree, unpack_blobs):
     """
     tree_entries = []
     for entry in tree['entries']:
+        print('Entry', entry)
         if entry['mode'] == GIT_NORMAL_FILE_MODE:
             blob = client.get_json(entry['cid'])
             # write content to the file if wanted
@@ -708,8 +712,9 @@ def check_if_repo_created():
         
 def read_repo_name():
     """Read the repoName file and return the name"""
+    repo_root_path = get_repo_root_path()
     try:
-        data = read_file(os.path.join('.git', 'name'))
+        data = read_file(os.path.join(repo_root_path, '.git', 'name'))
     except FileNotFoundError:
         return ""
     return data.rstrip().decode('ascii')
@@ -908,31 +913,26 @@ def write_tree():
     tree_entries = []
     tree_to_process = {'.': []}
     indexEntries = read_index()
+    # we are going to create a dict, where the repo hierarchy is shown and used 
+    # to create the git objects
     for entry in indexEntries:
-        if '/' in entry.path:
-            path = '/'.join(entry.path.split('/')[0:-1])
+        splitted_path = entry.path.split('/')
+        filename = splitted_path.pop()
+        if len(splitted_path) == 0:
+            tree_to_process['.'].append(entry)
         else:
-            path = '.'
-
-        if path in tree_to_process:
-            tree_to_process[path].append(entry)
-        else:
-            tree_to_process[path] = [entry]
-
-        # check if path is a directory and not a path to a sub directory
-        # if so, add it to the root dir
-        if path != '.' and '/' not in path:
-            if '.' in tree_to_process and path not in tree_to_process['.']:
-                tree_to_process['.'].append(path)
-            elif '.' in tree_to_process and path not in tree_to_process['.']:
-                tree_to_process['.'] = [path]
-        elif '/' in path:
-            # if there is subdirectory in a directory we add it
-            key = '/'.join(path.split('/')[0:-1])
-            if key in tree_to_process:
-                tree_to_process[key].append(path)
+            previous = '.'
+            for dir_name in splitted_path:
+                if previous in tree_to_process:
+                    if dir_name not in tree_to_process[previous]:
+                        tree_to_process[previous].append(dir_name)
+                else:
+                    tree_to_process[previous] = [dir_name]
+                previous = dir_name
+            if previous in tree_to_process:
+                tree_to_process[previous].append(entry)
             else:
-                tree_to_process[key] = [path]
+                tree_to_process[previous] = [entry]
 
     for entry in tree_to_process['.']:
         if isinstance(entry, IndexEntry):
@@ -965,7 +965,8 @@ def __write_subtree(indexEntries, dirName):
 
 def get_local_master_hash():
     """Get current commit hash (SHA-1 string) of local master branch."""
-    master_path = os.path.join('.git', 'refs', 'heads', 'master')
+    repo_root_path = get_repo_root_path()
+    master_path = os.path.join(repo_root_path, '.git', 'refs', 'heads', 'master')
     try:
         return read_file(master_path).decode().strip()
     except FileNotFoundError:
@@ -1007,7 +1008,9 @@ def commit(message, author=None, parent1=None, parent2=None):
     lines.append('')
     data = '\n'.join(lines).encode()
     sha1 = hash_object(data, 'commit')
-    master_path = os.path.join('.git', 'refs', 'heads', 'master')
+
+    repo_root_path = get_repo_root_path()
+    master_path = os.path.join(repo_root_path, '.git', 'refs', 'heads', 'master')
     write_file(master_path, (sha1 + '\n').encode())
     print('committed to master: {:7}'.format(sha1))
     return sha1
@@ -1219,7 +1222,7 @@ def __push_commit(commit_hash, remote_commit_hash, remote_commit_cid):
     """
     # we don't need to push a commit object if remote sha1 is equal to local sha1 hash
     if commit_hash == remote_commit_hash:
-        return remote_commit_cid
+       return remote_commit_cid
     obj_type, commit = read_object(commit_hash)
     assert obj_type == 'commit'
     lines = commit.decode().splitlines()
@@ -1268,6 +1271,7 @@ def push(git_url):
         return
     local_sha1 = get_local_master_hash()
     remote_cid = get_remote_master_hash()
+
     if remote_cid != None:
         # since there is already something pushed, we will have to get the remote cid
         remote_commit = client.get_json(remote_cid)
@@ -1276,11 +1280,11 @@ def push(git_url):
         remote_sha1 = None
 
     if local_sha1 == remote_sha1:
-        print('There is nothing to push')
-        return
+       print('There is nothing to push')
+       return
     elif __check_if_remote_ahead(remote_sha1):
-        print('Remote repository is ahead. Pull the changes first')
-        return
+       print('Remote repository is ahead. Pull the changes first')
+       return
     master_cid = __push_commit(local_sha1, remote_sha1, remote_cid)
     if master_cid == remote_cid:
         print('There is nothing to push')
@@ -1520,15 +1524,14 @@ def merge():
         else:
             merge[e[0]].append(e[1])
 
-    print()
-    print(merge)
+    # print()
+    # print(merge)
     
     # if all hashes are the same, there is nothing we have to do
     # In case the second and third entry are not None, but the first one is: I am not sure if this case actually is possible
     #TODO: test with directories
+    conflict_files = []
     for f in merge:
-        print()
-        print(f, '  ', merge[f])
         if len(merge[f]) == 2 and merge[f][0] != merge[f][1]:
             # if there are only two entries, the remote branch does not have the file and we will add it to the repository
             obj_type, data = read_object(merge[f][1])
@@ -1544,10 +1547,44 @@ def merge():
             if not os.path.exists(path):
                 os.makedirs(os.path.dirname(path), exist_ok=True)
             write_file(path, data)
-        elif not all(merge[f]):
-            # TODO: 
-            print('Here we will have to merge the files using 3-way merge')
-    
+        elif len(set(merge[f])) == 3:
+            # all entries are different, so 3-way merge
+            # read the content of each file
+            obj_type, base_data = read_object(merge[f][0])
+            obj_type, local_data = read_object(merge[f][1])
+            obj_type, remote_data = read_object(merge[f][2])
+            #do the 3-way merge
+            had_conflict, merged_lines = three_way_merge(
+                base_data.decode().splitlines(),
+                local_data.decode().splitlines(),
+                remote_data.decode().splitlines(),
+                "HEAD",
+                merge[f][2]
+            )
+            # writing the merged lines into the file
+            with open(os.path.join(repo_root_path, f), 'w') as file:
+                for line in merged_lines:
+                    file.write(line)
+            if had_conflict:
+                # adding file to list, so that we don't add it to the index
+                conflict_files.append(f)
+                path = os.path.join(repo_root_path, '.git/ORIG_HEAD')
+                write_file(path, '{}\n'.format(local_sha1).encode())
+                path = os.path.join(repo_root_path, '.git/MERGE_HEAD')
+                write_file(path, '{}\n'.format(fetch_head[:40].decode()).encode())
+                path = os.path.join(repo_root_path, '.git/MERGE_MODE')
+                write_file(path, b'')
+                path = os.path.join(repo_root_path, '.git/MERGE_MSG')
+                if os.path.exists(path):
+                    # append file name to conflict
+                    with open(path, 'a') as f:
+                        f.write('# \t{}'.format(f))
+                else:
+                    repo_name = read_repo_name()
+                    git_factory = get_factory_contract()
+                    git_repo_address = git_factory.functions.gitRepositories(repo_name).call()
+                    write_file(path, 'Merge branch \'main\' of {} into main\n\n# Conflicts\n# \t{}\n'.format(git_repo_address, f).encode())
+
     # adding all the files to the index. TODO: can be more efficient if we add it to the previous loop
     files_to_add = []
     pwd = os.getcwd()
@@ -1555,15 +1592,23 @@ def merge():
     for path, subdirs, files in os.walk('.'):
         for name in files:
             # we don't want to add the files under .git to the index
-            if not path.startswith('./.git'):
+            if not path.startswith('./.git') and name not in conflict_files:
                 files_to_add.append(os.path.join(path, name)[2:])
     os.chdir(pwd)
     add(files_to_add)
     # creating a commit object with two parents
-    commit('Merging remote into master', parent1=local_commits[0], parent2=remote_commits[0])
+    if not had_conflict:
+        commit('Merging remote into master', parent1=local_commits[0], parent2=remote_commits[0])
     
 
-def three_way_merge(x, a, b):
+def drop_inline_diffs(diff):
+    r = []
+    for t in diff:
+        if not t.startswith('?'):
+            r.append(t)
+    return r
+
+def three_way_merge(x, a, b, conflict_commit_one, conflict_commit_two):
     dxa = difflib.Differ()
     dxb = difflib.Differ()
     xa = drop_inline_diffs(dxa.compare(x, a))
@@ -1603,15 +1648,15 @@ def three_way_merge(x, a, b):
             continue
 
         # conflict - list both A and B, similar to GNU's diff3
-        m.append("<<<<<<< A\n")
+        m.append("\n<<<<<<< {}\n".format(conflict_commit_one))
         while (index_a < len(xa)) and not xa[index_a].startswith('  '):
             m.append(xa[index_a][2:])
             index_a += 1
-        m.append("=======\n")
+        m.append("\n=======\n")
         while (index_b < len(xb)) and not xb[index_b].startswith('  '):
             m.append(xb[index_b][2:])
             index_b += 1
-        m.append(">>>>>>> B\n")
+        m.append("\n>>>>>>> {}\n".format(conflict_commit_two))
         had_conflict = 1
 
     # append remining lines - there will be only either A or B
