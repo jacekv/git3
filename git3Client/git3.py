@@ -381,6 +381,7 @@ def find_object(sha1_prefix):
         raise ValueError('hash prefix must be 2 or more characters')
     repo_root_path = get_repo_root_path()
     obj_dir = os.path.join(repo_root_path, '.git', 'objects', sha1_prefix[:2])
+    print(obj_dir)
     rest = sha1_prefix[2:]
     objects = [name for name in os.listdir(obj_dir) if name.startswith(rest)]
     if not objects:
@@ -1300,7 +1301,7 @@ def get_subtree_entries(tree_sha1, path, entries):
         if entry[0] == GIT_NORMAL_FILE_MODE:
             entries.append((os.path.join(path, entry[1]), entry[2]))
         elif entry[0] == GIT_TREE_MODE:
-            get_subtree_entries(entry[2], entry[1], entries)
+            get_subtree_entries(entry[2], os.path.join(path, entry[1]), entries)
 
 def is_stage_empty():
     """
@@ -1417,12 +1418,12 @@ def fetch():
     if local_commits[0] == remote_commits_sha1[0]:
         return
     remote_to_local_difference = set(remote_commits_sha1) - set(local_commits)
+    repo_root_path = get_repo_root_path()
     for commit_hash in remote_to_local_difference:
         for commit in remote_commits:
             if commit['sha1'] == commit_hash:
-                unpack_files_of_commit('.', commit, False)
+                unpack_files_of_commit(repo_root_path, commit, False)
     data = '{}\t\t{}\'{}\' of {}\n'.format(remote_commits_sha1[0], 'branch ', 'main', git_repo_address).encode()
-    repo_root_path = get_repo_root_path()
     path = os.path.join(repo_root_path, '.git', 'FETCH_HEAD')
     if not os.path.exists(path):
         os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -1524,12 +1525,8 @@ def merge():
         else:
             merge[e[0]].append(e[1])
 
-    # print()
-    # print(merge)
-    
     # if all hashes are the same, there is nothing we have to do
     # In case the second and third entry are not None, but the first one is: I am not sure if this case actually is possible
-    #TODO: test with directories
     conflict_files = []
     for f in merge:
         if len(merge[f]) == 2 and merge[f][0] != merge[f][1]:
