@@ -29,7 +29,6 @@ GIT_NORMAL_FILE_MODE = 33188
 GIT_TREE_MODE = 16384
 
 RPC_ADDRESS = 'https://rpc-mumbai.matic.today'
-CONFLICT_PATTERN = '<<<<<<< \w*\n((.|\n)*)=======\n((.|\n)*)>>>>>>> \w*'
 GIT_FACTORY_ADDRESS = '0x3bFF586A6Cab36Bb87Da89df1d9578691e3328a1'
 USER_ADDRESS = '0xeC41371D14F7be781301FdD2B39556e7F353D201'
 IPFS_CONNECTION = '/dns/ipfs.infura.io/tcp/5001/https'
@@ -895,9 +894,6 @@ def add(paths):
     for path in paths:
         file_path = repo_root_path + '/' + path
         data = read_file(file_path)
-        if re.search(CONFLICT_PATTERN, data.decode()):
-            print('File {} contains conflicts. Resolve them first before adding it'.format(file_path))
-            continue
         sha1 = hash_object(data, 'blob')
         st = os.stat(file_path)
         #TODO: We will need to check for the file mode properly!
