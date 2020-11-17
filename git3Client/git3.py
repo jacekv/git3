@@ -385,7 +385,6 @@ def find_object(sha1_prefix):
         raise ValueError('hash prefix must be 2 or more characters')
     repo_root_path = get_repo_root_path()
     obj_dir = os.path.join(repo_root_path, '.git', 'objects', sha1_prefix[:2])
-    print(obj_dir)
     rest = sha1_prefix[2:]
     objects = [name for name in os.listdir(obj_dir) if name.startswith(rest)]
     if not objects:
@@ -495,9 +494,11 @@ def __get_current_gas_price():
     """
     Gets the current standard gas price for the network
     """
+    print('Getting current gas price')
     return requests.get(MUMBAI_GAS_STATION).json()['standard']
 
 def __get_user_dlt_address():
+    print('Getting users web3 address')
     private_key = __read_private_key()
     acct = Account.privateKeyToAccount(private_key)
     return acct.address
@@ -511,11 +512,13 @@ def create():
     if repo_name == '':
         print('There is no repository name.')
         return
-    
+    #TODO: before creating tx and so on, check if this kind of repo exits already :)
     user_address = __get_user_dlt_address()
     nonce = w3.eth.getTransactionCount(user_address)
+
     gas_price = __get_current_gas_price()
     # get current gas price
+    print('Preparing transaction to create repository {}'.format(repo_name))
     create_repo_tx = git_factory.functions.createRepository(repo_name).buildTransaction({
         'chainId': CHAINID,
         'gas': 1947750,
@@ -523,16 +526,25 @@ def create():
         'nonce': nonce,
     })
     priv_key = bytes.fromhex(__read_private_key())
+
+    print('Signing transaction')
     signed_txn = w3.eth.account.sign_transaction(create_repo_tx, private_key=priv_key)
+
+    print('Sending transaction')
     tx_hash = w3.eth.sendRawTransaction(signed_txn.rawTransaction)
     receipt = w3.eth.waitForTransactionReceipt(tx_hash)
+
+    #TODO: print a clickable link to blockexplorer
+    print('Transaction hash {}'.format(binascii.hexlify(receipt['transactionHash']).decode()))
     if receipt['status']:
         print('Repository {:s} has been created'.format(repo_name))
     else:
         print('Creating {:s} repository failed'.format(repo_name))
-        print(receipt)
 
 def get_web3_provider():
+    """
+    Returns a web3 provider.
+    """
     return Web3(Web3.HTTPProvider(RPC_ADDRESS))
 
 def get_remote_cid_history():
@@ -560,9 +572,11 @@ def push_new_cid(cid):
         'nonce': nonce,
     })
     priv_key = bytes.fromhex(__read_private_key())
+    print('Signing transaction')
     signed_txn = w3.eth.account.sign_transaction(create_push_tx, private_key=priv_key)
     tx_hash = w3.eth.sendRawTransaction(signed_txn.rawTransaction)
     receipt = w3.eth.waitForTransactionReceipt(tx_hash)
+    print('Transaction hash {}'.format(binascii.hexlify(receipt['transactionHash']).decode()))
     if receipt['status']:
         print('Successfully pushed')
     else:
@@ -941,9 +955,10 @@ def write_tree():
     tree_entries = []
     tree_to_process = {'.': []}
     indexEntries = read_index()
-    # we are going to create a dict, where the repo hierarchy is shown and used 
-    # to create the git objects
+
     for entry in indexEntries:
+        # we are going to create a dict, where the repo hierarchy is shown and used 
+        # to create the git objects
         splitted_path = entry.path.split('/')
         filename = splitted_path.pop()
         if len(splitted_path) == 0:
@@ -1054,7 +1069,10 @@ def commit(message, author=None, parent1=None, parent2=None):
         os.remove(merge_mode_path)
         merge_msg_path = merge_head_path.replace('MERGE_HEAD', 'MERGE_MSG')
         os.remove(merge_msg_path)
-    print('committed to master: {:7}'.format(sha1))
+    #print('committed to master: {:7}'.format(sha1))
+    #TODO: git returns the number of files added and changed. Would be good too
+    print('[{} {}] {}'.format('master', sha1[:7], message))
+    print('Author: {}'.format(author))
     return sha1
 
 
@@ -1104,7 +1122,7 @@ def get_remote_master_hash():
     git_factory = get_factory_contract()
     repo_name = read_repo_name()
     git_repo_address = git_factory.functions.gitRepositories(repo_name).call()
-    print(git_repo_address)
+
     if git_repo_address == '0x0000000000000000000000000000000000000000':
         print('No such repository')
         return
@@ -1118,7 +1136,6 @@ def read_tree(sha1=None, data=None):
     """Read tree object with given SHA-1 (hex string) or data, and return list
     of (mode, path, sha1) tuples.
     """
-    print('Sha1 of tree', sha1)
     if sha1 is not None:
         obj_type, data = read_object(sha1)
         assert obj_type == 'tree'
@@ -1209,10 +1226,8 @@ def create_pack(objects):
 
 
 def __push_tree(tree_hash, folder_name):
-    print('Tree hash', tree_hash)
     entries = read_tree(tree_hash)
     tree_entries = []
-    print('Entries', entries)
     for entry in entries:
         if entry[0] == GIT_NORMAL_FILE_MODE:
             obj_type, blob = read_object(entry[2])
@@ -1223,6 +1238,7 @@ def __push_tree(tree_hash, folder_name):
                 'sha1': entry[2]
             }
             cid = client.add_json(blob_to_push)
+            print('Pushing {} to IPFS'.format(entry[1]))
             tree_entries.append({
                 'mode': entry[0],
                 'name': entry[1],
@@ -1303,7 +1319,6 @@ def __push_commit(commit_hash, remote_commit_hash, remote_commit_cid):
             if space_commit_message:
                 commit_to_push['commit_message'] = line
     commit_cid = client.add_json(commit_to_push)
-    print('Commit CID', commit_cid, commit_to_push)
     return commit_cid
             
 def push(git_url):
@@ -1313,7 +1328,6 @@ def push(git_url):
         return
     local_sha1 = get_local_master_hash()
     remote_cid = get_remote_master_hash()
-
     if remote_cid != None:
         # since there is already something pushed, we will have to get the remote cid
         remote_commit = client.get_json(remote_cid)
@@ -1322,15 +1336,17 @@ def push(git_url):
         remote_sha1 = None
 
     if local_sha1 == remote_sha1:
-       print('There is nothing to push')
+       print('Everything up-to-date')
        return
     elif __check_if_remote_ahead(remote_sha1):
        print('Remote repository is ahead. Pull the changes first')
        return
+    print('Pushing files to IPFS')
     master_cid = __push_commit(local_sha1, remote_sha1, remote_cid)
     if master_cid == remote_cid:
-        print('There is nothing to push')
+        print('Everything up-to-date')
     else:
+        print('Going to write the CID into repository contract')
         push_new_cid(master_cid)
 
 def get_subtree_entries(tree_sha1, path, entries):
