@@ -5,6 +5,7 @@ Read the story here: http://benhoyt.com/writings/pygit/
 Released under a permissive MIT license (see LICENSE.txt).
 """
 from web3 import Web3
+from eth_account import Account
 from getpass import getpass
 from pathlib import Path
 from Crypto.PublicKey import ECC
@@ -16,6 +17,7 @@ import ipfshttpclient
 import binascii
 import itertools
 import re
+import requests
 
 # Data for one entry in the git index (.git/index)
 IndexEntry = collections.namedtuple('IndexEntry', [
@@ -27,6 +29,9 @@ IndexEntry = collections.namedtuple('IndexEntry', [
 # 100644 is a normal file in git
 GIT_NORMAL_FILE_MODE = 33188
 GIT_TREE_MODE = 16384
+
+MUMBAI_GAS_STATION='https://gasstation-mumbai.matic.today'
+CHAINID=80001
 
 RPC_ADDRESS = 'https://rpc-mumbai.matic.today'
 GIT_FACTORY_ADDRESS = '0x3bFF586A6Cab36Bb87Da89df1d9578691e3328a1'
@@ -313,14 +318,12 @@ class ObjectType(enum.Enum):
 
 def read_file(path):
     """Read contents of file at given path as bytes."""
-    print('Reading file from:', path)
     with open(path, 'rb') as f:
         return f.read()
 
 
 def write_file(path, data):
     """Write data bytes to file at given path."""
-    print('Writing file to:', path)
     with open(path, 'wb') as f:
         f.write(data)
 
@@ -445,7 +448,7 @@ def __get_value_from_config_file(key):
     """
     # we are going to check if there is a config file in the repo.
     root_path = get_repo_root_path()
-    config_path = '{}/config'.format(root_path)
+    config_path = '{}/.git/config'.format(root_path)
     if not os.path.isfile(config_path):
         # if not, use the global config file
         config_path = '~/.gitconfig'
@@ -468,7 +471,7 @@ def __read_private_key():
     Reads the private key from a (ebcrypted) pem file and returns it
     """
     # TODO: this is temp and has to be removed later
-    return os.environ['PRIV_KEY']
+    #return os.environ['PRIV_KEY']
     identity_file_path = __get_value_from_config_file('IdentityFile')
     content = read_file(os.path.expanduser(identity_file_path))
     password = ''
@@ -488,23 +491,38 @@ def __read_private_key():
     return hex(key.d)[2:]
 
 
+def __get_current_gas_price():
+    """
+    Gets the current standard gas price for the network
+    """
+    return requests.get(MUMBAI_GAS_STATION).json()['standard']
+
+def __get_user_dlt_address():
+    private_key = __read_private_key()
+    acct = Account.privateKeyToAccount(private_key)
+    return acct.address
+
+
 def create():
     git_factory = get_factory_contract()
     repo_name = read_repo_name()
     w3 = get_web3_provider()
+    
     if repo_name == '':
         print('There is no repository name.')
         return
-    #TODO: calc address from piv key :)
-    nonce = w3.eth.getTransactionCount(USER_ADDRESS)
-
-    priv_key = bytes.fromhex(__read_private_key())
+    
+    user_address = __get_user_dlt_address()
+    nonce = w3.eth.getTransactionCount(user_address)
+    gas_price = __get_current_gas_price()
+    # get current gas price
     create_repo_tx = git_factory.functions.createRepository(repo_name).buildTransaction({
-        'chainId': 80001,
+        'chainId': CHAINID,
         'gas': 1947750,
-        'gasPrice': w3.toWei('2', 'gwei'),
+        'gasPrice': w3.toWei(gas_price, 'gwei'),
         'nonce': nonce,
     })
+    priv_key = bytes.fromhex(__read_private_key())
     signed_txn = w3.eth.account.sign_transaction(create_repo_tx, private_key=priv_key)
     tx_hash = w3.eth.sendRawTransaction(signed_txn.rawTransaction)
     receipt = w3.eth.waitForTransactionReceipt(tx_hash)
@@ -529,16 +547,19 @@ def push_new_cid(cid):
     repo_name = read_repo_name()
     git_repo_address = git_factory.functions.gitRepositories(repo_name).call()
     repo_contract = get_repository_contract(git_repo_address)
-    print('Yay')
     w3 = get_web3_provider()
-    nonce = w3.eth.getTransactionCount(USER_ADDRESS)
-    priv_key = bytes.fromhex(__read_private_key())
+
+    user_address = __get_user_dlt_address()
+    nonce = w3.eth.getTransactionCount(user_address)
+
+    gas_price = __get_current_gas_price()
     create_push_tx = repo_contract.functions.push(cid).buildTransaction({
-        'chainId': 80001,
+        'chainId': CHAINID,
         'gas': 746427,
-        'gasPrice': w3.toWei('1', 'gwei'),
+        'gasPrice': w3.toWei(gas_price, 'gwei'),
         'nonce': nonce,
     })
+    priv_key = bytes.fromhex(__read_private_key())
     signed_txn = w3.eth.account.sign_transaction(create_push_tx, private_key=priv_key)
     tx_hash = w3.eth.sendRawTransaction(signed_txn.rawTransaction)
     receipt = w3.eth.waitForTransactionReceipt(tx_hash)
@@ -867,7 +888,7 @@ def get_repo_root_path():
         parent += 1
     if contains_git_folder:
         return str(path_to_test.parents[parent])
-    raise NoRepositoryError('Haven\'t found a git repository. Init one first.')
+    raise NoRepositoryError('fatal: not a git repository (or any of the parent directories): .git')
 
 
 def add(paths):
@@ -893,7 +914,11 @@ def add(paths):
     entries = [e for e in all_entries if e.path not in paths]
     for path in paths:
         file_path = repo_root_path + '/' + path
-        data = read_file(file_path)
+        try:
+            data = read_file(file_path)
+        except FileNotFoundError:
+            print('fatal: pathspec \'{}\' did not match any files'.format(path))
+            return
         sha1 = hash_object(data, 'blob')
         st = os.stat(file_path)
         #TODO: We will need to check for the file mode properly!
@@ -1284,7 +1309,7 @@ def __push_commit(commit_hash, remote_commit_hash, remote_commit_cid):
 def push(git_url):
     """Push master branch to given git repo URL.""" 
     if not check_if_repo_created():
-        print('Repository has not been registered yet. Use\n\n`git create`\n\nbefore you push')
+        print('Repository has not been registered yet. Use\n\n`git3 create`\n\nbefore you push')
         return
     local_sha1 = get_local_master_hash()
     remote_cid = get_remote_master_hash()
