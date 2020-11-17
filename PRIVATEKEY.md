@@ -34,3 +34,6 @@ Extract the private key
 
 taken from https://bitcoin.stackexchange.com/questions/66594/signing-transaction-with-ssl-private-key-to-pem
 Tested with metamask :) Work great
+
+to go from PEM to DEC format
+openssl ec -outform der -in matic -out private.key

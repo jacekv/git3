@@ -98,6 +98,8 @@ Once I have this structure, I am iterating over the git root folder, which is `.
 
 In case of testFolder, I would call `__write_subtree` where I iterate over the files in `testFolder` and return a tree object. The same happens with `helloWorld`. This also allows to traverse subdirectories :)
 
+Commit checks if there is a MERGE_HEAD file in the .git directory. If there is, create a commit with two parents.
+
 ## Branches
 
 Branches are done using refs. In `.git/refs/heads/[branch name]` you have a pointer to a hash the `HEAD` file is pointing to the file. If we are on master the content of HEAD is
@@ -147,6 +149,27 @@ Incase of any merge conflicts that are resolved are under vicinity of tree assoc
 One more thing which generally creates confusion among developers is how in git merge same file edits handled in different branches? During merge process the git merges the file snapshot line by line and creates new blob snapshot automatically unless it finds a conflict.
 Conflict happens if during merge process edit/diffs are found on same line in the same file. When you resolve the conflict the blob associated with new edits is referenced in merge commit tree.
 
+Files created during a conflict in the .git directory:
+
+ * MERGE_HEAD: if I am in in main and merge test5 onto main, MERGE_HEAD contains the commit of test5 branch
+   if it is the same branch, than the sha1 hash of the commit. In general it contains the sha1 hash of the tip 
+   which is merged into our current branch
+ * ORIG_HEAD: contains sha1 of commit of main branch
+ * MERGE_MODE is empty
+ * MERGE_MSG contains: 
+   ```
+      Merge branch 'name' into main
+
+      # Conflicts:
+      #     test.txt
+    ```
+    if it is the same branch, than 
+    ```
+    Merge branch 'main' of https://github.com/jacekv/testRepo into main
+
+    # Conflicts:
+    #       test.txt
+    ```
 
 # Sources
   [1] http://jwiegley.github.io/git-from-the-bottom-up/

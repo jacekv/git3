@@ -1,6 +1,16 @@
-  - During git3.py add -> check if .git folder available
   - Branching
-  - Merging
   - Pull
-  - calc address from priv key
   - estimate gas for tx
+  - rewrite fetch: don't load all remote commits, just one by one, until you hit one which already exists
+  - rm
+  - git add and git3 add -> difference between index files. Don't know why yet
+
+  - origin: url of repo is stored in .git/config
+
+
+  In add we are checking if there is a conflict and if there is, we reject the file. But we somehow have to create a
+  commit with two parents. How does that work? How does git know that there should be a commit with two parents?
+   - Git add worked, even there is a conflict
+   - Git doesn't do anything to prevent it...
+
+
