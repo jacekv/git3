@@ -1033,11 +1033,10 @@ def commit(message, author=None, parent1=None, parent2=None):
         parent2 = read_file(merge_head_path).decode().strip()
 
     if author is None:
-        #TODO: We need to put that in after some time
-        #user_name = __get_value_from_config_file('name')
-        #user_email = __get_value_from_config_file('email')
-        author = '{} <{}>'.format(
-                os.environ['GIT_AUTHOR_NAME'], os.environ['GIT_AUTHOR_EMAIL'])
+        user_name = __get_value_from_config_file('name')
+        user_email = __get_value_from_config_file('email')
+        author = '{} <{}>'.format(user_name, user_email)
+
     timestamp = int(time.mktime(time.localtime()))
     utc_offset = -time.timezone
     author_time = '{} {}{:02}{:02}'.format(
@@ -1520,6 +1519,9 @@ def merge():
     """
     repo_root_path = get_repo_root_path()
     fetch_head_path = os.path.join(repo_root_path, '.git', 'FETCH_HEAD')
+    if not os.path.exists(fetch_head_path):
+        print('Nothing to merge. Have you called fetch before?')
+        return
     fetch_head = read_file(fetch_head_path)
 
     remote_sha1 = fetch_head.decode()[0:40]
@@ -1529,20 +1531,18 @@ def merge():
        return
     remote_commits = get_all_local_commits(remote_sha1)
     local_commits = get_all_local_commits(local_sha1)
-    print('Remote commits', remote_commits)
-    print('Local commits ', local_commits)
 
     difference = set(local_commits) - set(remote_commits)
     
     if len(difference) == 0:
-        print('Fast forward')
+        #fast forward strategy
         path = os.path.join(repo_root_path, '.git/refs/heads/master')
         write_file(path, "{}\n".format(remote_sha1).encode())
         obj_type, commit_data = read_object(remote_sha1)
         tree_sha1 = commit_data.decode().splitlines()[0][5:45]
         __unpack_object(tree_sha1, repo_root_path, repo_root_path)
         return
-    print('Non fast forward')
+    # non fast forward strategy
     intersection = set(local_commits).intersection(remote_commits)
     for commit_hash in remote_commits:
         if commit_hash in intersection:
