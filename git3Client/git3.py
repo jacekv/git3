@@ -986,6 +986,12 @@ def commit(message, author=None, parent1=None, parent2=None):
         parent = get_local_master_hash()
     else:
         parent = parent1
+
+    # check if there is a MERGE_HEAD file. If there is, parent2 is set to the sha1 hash
+    merge_head_path = os.path.join(get_repo_root_path(), '.git/MERGE_HEAD')
+    if os.path.exists(merge_head_path):
+        parent2 = read_file(merge_head_path).decode().strip()
+
     if author is None:
         #TODO: We need to put that in after some time
         #user_name = __get_value_from_config_file('name')
@@ -1015,6 +1021,14 @@ def commit(message, author=None, parent1=None, parent2=None):
     repo_root_path = get_repo_root_path()
     master_path = os.path.join(repo_root_path, '.git', 'refs', 'heads', 'master')
     write_file(master_path, (sha1 + '\n').encode())
+
+    # remove the merge files from the .git directory if committed
+    if parent2 != None and os.path.exists(merge_head_path):
+        os.remove(merge_head_path)
+        merge_mode_path = merge_head_path.replace('MERGE_HEAD', 'MERGE_MODE')
+        os.remove(merge_mode_path)
+        merge_msg_path = merge_head_path.replace('MERGE_HEAD', 'MERGE_MSG')
+        os.remove(merge_msg_path)
     print('committed to master: {:7}'.format(sha1))
     return sha1
 
