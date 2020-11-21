@@ -34,33 +34,27 @@ MUMBAI_GAS_STATION='https://gasstation-mumbai.matic.today'
 CHAINID=80001
 
 RPC_ADDRESS = 'https://rpc-mumbai.matic.today'
-GIT_FACTORY_ADDRESS = '0x3bFF586A6Cab36Bb87Da89df1d9578691e3328a1'
-USER_ADDRESS = '0xeC41371D14F7be781301FdD2B39556e7F353D201'
+GIT_FACTORY_ADDRESS = '0x12aDc3F0dad279597CaE96B744A332004FAE2FeD'
 IPFS_CONNECTION = '/dns/ipfs.infura.io/tcp/5001/https'
 FACTORY_ABI = '''
 [
-	{
-		"inputs": [],
-		"stateMutability": "nonpayable",
-		"type": "constructor"
-	},
 	{
 		"anonymous": false,
 		"inputs": [
 			{
 				"indexed": false,
 				"internalType": "string",
-				"name": "Name",
+				"name": "name",
 				"type": "string"
 			},
 			{
 				"indexed": false,
-				"internalType": "contract GitRepository",
-				"name": "Address",
+				"internalType": "address",
+				"name": "user",
 				"type": "address"
 			}
 		],
-		"name": "CreatedNewRepository",
+		"name": "NewRepositoryCreated",
 		"type": "event"
 	},
 	{
@@ -86,7 +80,31 @@ FACTORY_ABI = '''
 		"inputs": [
 			{
 				"internalType": "string",
-				"name": "name",
+				"name": "",
+				"type": "string"
+			}
+		],
+		"name": "activeRepository",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "isActive",
+				"type": "bool"
+			},
+			{
+				"internalType": "uint256",
+				"name": "index",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "_repoName",
 				"type": "string"
 			}
 		],
@@ -99,16 +117,72 @@ FACTORY_ABI = '''
 		"inputs": [
 			{
 				"internalType": "string",
-				"name": "",
+				"name": "_repoName",
 				"type": "string"
 			}
 		],
-		"name": "gitRepositories",
+		"name": "getRepositoriesUserList",
 		"outputs": [
 			{
-				"internalType": "contract GitRepository",
+				"internalType": "address[]",
 				"name": "",
+				"type": "address[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getRepositoryNames",
+		"outputs": [
+			{
+				"internalType": "string[]",
+				"name": "",
+				"type": "string[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_owner",
 				"type": "address"
+			},
+			{
+				"internalType": "string",
+				"name": "_repoName",
+				"type": "string"
+			}
+		],
+		"name": "getUserRepoNameHash",
+		"outputs": [
+			{
+				"internalType": "bytes32",
+				"name": "",
+				"type": "bytes32"
+			}
+		],
+		"stateMutability": "pure",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_owner",
+				"type": "address"
+			}
+		],
+		"name": "getUsersRepositories",
+		"outputs": [
+			{
+				"internalType": "string[]",
+				"name": "",
+				"type": "string[]"
 			}
 		],
 		"stateMutability": "view",
@@ -128,10 +202,110 @@ FACTORY_ABI = '''
 		"type": "function"
 	},
 	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_owner",
+				"type": "address"
+			},
+			{
+				"internalType": "string",
+				"name": "_repoName",
+				"type": "string"
+			},
+			{
+				"internalType": "uint256",
+				"name": "_userIndex",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "_repoIndex",
+				"type": "uint256"
+			}
+		],
+		"name": "removeRepository",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
 		"inputs": [],
 		"name": "renounceOwnership",
 		"outputs": [],
 		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			},
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "reposUserList",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "",
+				"type": "bytes32"
+			}
+		],
+		"name": "repositoryList",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "isActive",
+				"type": "bool"
+			},
+			{
+				"internalType": "string",
+				"name": "name",
+				"type": "string"
+			},
+			{
+				"internalType": "contract GitRepository",
+				"name": "location",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "repositoryNames",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			}
+		],
+		"stateMutability": "view",
 		"type": "function"
 	},
 	{
@@ -146,6 +320,30 @@ FACTORY_ABI = '''
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "usersRepoList",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
 	}
 ]
 '''
@@ -155,18 +353,65 @@ REPOSITORY_ABI = '''
 	{
 		"inputs": [
 			{
+				"internalType": "address",
+				"name": "_factory",
+				"type": "address"
+			},
+			{
 				"internalType": "string",
-				"name": "name",
+				"name": "_name",
 				"type": "string"
 			},
 			{
 				"internalType": "address",
-				"name": "owner",
+				"name": "_owner",
 				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "_userIndex",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "_repoIndex",
+				"type": "uint256"
 			}
 		],
 		"stateMutability": "nonpayable",
 		"type": "constructor"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "Cid",
+				"type": "string"
+			}
+		],
+		"name": "NewIssue",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "branch",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "Cid",
+				"type": "string"
+			}
+		],
+		"name": "NewPush",
+		"type": "event"
 	},
 	{
 		"anonymous": false,
@@ -188,7 +433,138 @@ REPOSITORY_ABI = '''
 		"type": "event"
 	},
 	{
+		"anonymous": false,
 		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "tipper",
+				"type": "address"
+			}
+		],
+		"name": "ReceivedTip",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "branchNames",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			}
+		],
+		"name": "branches",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "isActive",
+				"type": "bool"
+			},
+			{
+				"internalType": "string",
+				"name": "headCid",
+				"type": "string"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "collectTips",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "deleteRepository",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getBranchNames",
+		"outputs": [
+			{
+				"internalType": "string[]",
+				"name": "",
+				"type": "string[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "issues",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "cid",
+				"type": "string"
+			},
+			{
+				"internalType": "uint256",
+				"name": "bounty",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "owner",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "branch",
+				"type": "string"
+			},
 			{
 				"internalType": "string",
 				"name": "newCid",
@@ -208,6 +584,32 @@ REPOSITORY_ABI = '''
 		"type": "function"
 	},
 	{
+		"inputs": [],
+		"name": "repoName",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "tips",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
 		"inputs": [
 			{
 				"internalType": "address",
@@ -224,72 +626,31 @@ REPOSITORY_ABI = '''
 		"inputs": [
 			{
 				"internalType": "uint256",
-				"name": "",
+				"name": "_newRepoIndex",
 				"type": "uint256"
 			}
 		],
-		"name": "cidHistory",
-		"outputs": [
-			{
-				"internalType": "string",
-				"name": "",
-				"type": "string"
-			}
-		],
-		"stateMutability": "view",
+		"name": "updateRepoIndex",
+		"outputs": [],
+		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
-		"inputs": [],
-		"name": "getCidHistory",
-		"outputs": [
+		"inputs": [
 			{
-				"internalType": "string[]",
-				"name": "",
-				"type": "string[]"
+				"internalType": "uint256",
+				"name": "_newUserIndex",
+				"type": "uint256"
 			}
 		],
-		"stateMutability": "view",
+		"name": "updateUserIndex",
+		"outputs": [],
+		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
-		"inputs": [],
-		"name": "headCid",
-		"outputs": [
-			{
-				"internalType": "string",
-				"name": "",
-				"type": "string"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "owner",
-		"outputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "repoName",
-		"outputs": [
-			{
-				"internalType": "string",
-				"name": "",
-				"type": "string"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
+		"stateMutability": "payable",
+		"type": "receive"
 	}
 ]
 '''
@@ -557,15 +918,21 @@ def get_remote_cid_history():
 def push_new_cid(cid):
     git_factory = get_factory_contract()
     repo_name = read_repo_name()
-    git_repo_address = git_factory.functions.gitRepositories(repo_name).call()
+    user_address = __get_user_dlt_address()
+
+    user_key = git_factory.functions.getUserRepoNameHash(user_address, repo_name).call()
+    user_key = '0x{}'.format(binascii.hexlify(user_key).decode())
+    repository = git_factory.functions.repositoryList(user_key).call()
+
+    git_repo_address = repository[2]
     repo_contract = get_repository_contract(git_repo_address)
     w3 = get_web3_provider()
 
-    user_address = __get_user_dlt_address()
+    # user_address = __get_user_dlt_address()
     nonce = w3.eth.getTransactionCount(user_address)
 
     gas_price = __get_current_gas_price()
-    create_push_tx = repo_contract.functions.push(cid).buildTransaction({
+    create_push_tx = repo_contract.functions.push('main', cid).buildTransaction({
         'chainId': CHAINID,
         'gas': 746427,
         'gasPrice': w3.toWei(gas_price, 'gwei'),
@@ -633,7 +1000,6 @@ def unpack_files_of_tree(repo_name, path_to_write, tree, unpack_blobs):
     """
     tree_entries = []
     for entry in tree['entries']:
-        print('Entry', entry)
         if entry['mode'] == GIT_NORMAL_FILE_MODE:
             blob = client.get_json(entry['cid'])
             # write content to the file if wanted
@@ -653,11 +1019,8 @@ def unpack_files_of_tree(repo_name, path_to_write, tree, unpack_blobs):
             mode_path = '{:o} {}'.format(GIT_NORMAL_FILE_MODE, entry['name']).encode()
             tree_entry = mode_path + b'\x00' + binascii.unhexlify(blob['sha1'])
             tree_entries.append(tree_entry)
-            print()
         elif entry['mode'] == GIT_TREE_MODE:
-            print('Entry is a tree', entry)
             sub_tree = client.get_json(entry['cid'])
-            print('Sub tree', sub_tree)
             unpack_files_of_tree(repo_name, "{}/{}".format(path_to_write, entry['name']), sub_tree, unpack_blobs)
             mode_path = '{:o} {}'.format(GIT_TREE_MODE, entry['name']).encode()
             tree_entry = mode_path + b'\x00' + binascii.unhexlify(sub_tree['sha1'])
@@ -690,13 +1053,22 @@ def clone(repo_name):
 
     repo_name: Repository to be cloned
     """
+    # 0x0539E6a1093a359C5720d053DB5e3D277F1762B6/mumbaiTestRepo
+    user_address, repo_name = repo_name.split('/')
+
     git_factory = get_factory_contract()
-    git_repo_address = git_factory.functions.gitRepositories(repo_name).call()
-    if git_repo_address == '0x0000000000000000000000000000000000000000':
+    user_key = git_factory.functions.getUserRepoNameHash(user_address, repo_name).call()
+    user_key = '0x{}'.format(binascii.hexlify(user_key).decode())
+    repository = git_factory.functions.repositoryList(user_key).call()
+
+    if not repository[0] or repository[1] != repo_name:
         print('No such repository')
         return
+    git_repo_address = repository[2]
     repo_contract = get_repository_contract(git_repo_address)
-    headCid = repo_contract.functions.headCid().call()
+    branch = repo_contract.functions.branches('main').call()
+    headCid = branch[1]
+
     print('Cloning {:s}'.format(repo_name))
     # initialize repository
     init(repo_name)
@@ -741,11 +1113,12 @@ def check_if_repo_created():
         #TODO: Throw an exception
         print('No connection. Establish a connection first')
         return False
-    gitFactory = get_factory_contract()
-    address = gitFactory.functions.gitRepositories(repo_name).call()
-    if address == '0x0000000000000000000000000000000000000000':
-        return False
-    return True
+    git_factory = get_factory_contract()
+    user_address = __get_user_dlt_address()
+    user_key = git_factory.functions.getUserRepoNameHash(user_address, repo_name).call()
+    user_key = '0x{}'.format(binascii.hexlify(user_key).decode())
+    repository = git_factory.functions.repositoryList(user_key).call()
+    return repository[0]
         
 def read_repo_name():
     """Read the repoName file and return the name"""
@@ -1120,16 +1493,24 @@ def get_remote_master_hash():
     """
     git_factory = get_factory_contract()
     repo_name = read_repo_name()
-    git_repo_address = git_factory.functions.gitRepositories(repo_name).call()
+    user_address = __get_user_dlt_address()
 
-    if git_repo_address == '0x0000000000000000000000000000000000000000':
+    user_key = git_factory.functions.getUserRepoNameHash(user_address, repo_name).call()
+    user_key = '0x{}'.format(binascii.hexlify(user_key).decode())
+    repository = git_factory.functions.repositoryList(user_key).call()
+    
+    if not repository[0]:
         print('No such repository')
         return
+    git_repo_address = repository[2]
     repo_contract = get_repository_contract(git_repo_address)
-    headCid = repo_contract.functions.headCid().call()
-    if headCid == '':
+    # headCid = repo_contract.functions.headCid().call()
+    branch = repo_contract.functions.branches('main').call()
+    # check if the branch is active
+    if not branch[0]:
         return None
-    return headCid
+    # if active, return head cid
+    return branch[1]
 
 def read_tree(sha1=None, data=None):
     """Read tree object with given SHA-1 (hex string) or data, and return list
@@ -1320,7 +1701,7 @@ def __push_commit(commit_hash, remote_commit_hash, remote_commit_cid):
     commit_cid = client.add_json(commit_to_push)
     return commit_cid
             
-def push(git_url):
+def push():
     """Push master branch to given git repo URL.""" 
     if not check_if_repo_created():
         print('Repository has not been registered yet. Use\n\n`git3 create`\n\nbefore you push')
@@ -1456,14 +1837,23 @@ def fetch():
     """
     Downloads commits and objects from the remote repository
     """
-    repo_name = read_repo_name()
     git_factory = get_factory_contract()
-    git_repo_address = git_factory.functions.gitRepositories(repo_name).call()
-    if git_repo_address == '0x0000000000000000000000000000000000000000':
+    repo_name = read_repo_name()
+    user_address = __get_user_dlt_address()
+
+    user_key = git_factory.functions.getUserRepoNameHash(user_address, repo_name).call()
+    user_key = '0x{}'.format(binascii.hexlify(user_key).decode())
+    repository = git_factory.functions.repositoryList(user_key).call()
+
+    if not repository[0]:
         print('No such repository')
         return
+
+    git_repo_address = repository[2]
     repo_contract = get_repository_contract(git_repo_address)
-    headCid = repo_contract.functions.headCid().call()
+
+    branch = repo_contract.functions.branches('main').call()
+    headCid = branch[1]
     
     remote_commits = get_all_remote_commits(headCid, repo_name)
     #extract only the sha1 hash
@@ -1800,8 +2190,8 @@ if __name__ == '__main__':
 
     sub_parser = sub_parsers.add_parser('push',
             help='push master branch to given git server URL')
-    sub_parser.add_argument('git_url',
-            help='URL of git repo, eg: https://github.com/benhoyt/pygit.git')
+    #sub_parser.add_argument('git_url',
+    #        help='URL of git repo, eg: https://github.com/benhoyt/pygit.git')
     #sub_parser.add_argument('-p', '--password',
             #help='password to use for authentication (uses GIT_PASSWORD '
                  #'environment variable by default)')
@@ -1849,7 +2239,8 @@ if __name__ == '__main__':
         merge()
     elif args.command == 'push':
         connect_to_infura()
-        push(args.git_url)
+        # push(args.git_url)
+        push()
         close_to_infura()
     elif args.command == 'pull':
         connect_to_infura()
