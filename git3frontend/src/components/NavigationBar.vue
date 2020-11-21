@@ -1,17 +1,20 @@
 <template>
   <v-app-bar app>
-    <img style='widht: 50px; height: 50px' src="@/assets/myLogo.png">
-    <v-text-field
-      class='pl-6 shrink'
-      hide-details
+    <img style="widht: 50px; height: 50px" src="@/assets/myLogo.png" />
+    <v-autocomplete
+      class="pl-6 shrink"
+      style="height: 30px;"
       prepend-icon="mdi-magnify"
-      single-line
+      v-model="model"
+      :items="items"
+      :search-input.sync="searchRepositories"
+      clearable
+      item-text="name"
+      item-value="symbol"
       label="Search repository"
-      @keydown.enter="searchFunction"
-      v-model='search'
-    ></v-text-field>
-    <v-spacer/>
-    <v-btn rounded @click='connectMetaMask'>
+    ></v-autocomplete>
+    <v-spacer />
+    <v-btn rounded @click="connectMetaMask">
       {{ buttonText }}
     </v-btn>
   </v-app-bar>
@@ -20,63 +23,114 @@
 <script>
 import store from '../store/index';
 
-const web3Config = require('../lib/web3Config.js');
+// const web3Config = require('../lib/web3Config.js');
 
 export default {
   name: 'NavigationBar',
   data() {
     return {
-      search: '',
       buttonText: 'Connect to MetaMask',
+      items: [],
+      value: null,
+      model: null,
+      searchRepositories: null,
     };
   },
-  methods: {
-    searchFunction() {
-      this.$factoryContract.methods.gitRepositories(this.search).call()
-        .then((address) => {
-          const repoContract = new this.$web3Matic.eth.Contract(
-            web3Config.REPOSITORY_INTERFACE, address,
-          );
-          return repoContract.methods.headCid().call();
+  watch: {
+    searchRepositories(userInput) {
+      if (userInput < 3) return;
+      // get all repositry names there are
+      this.$factoryContract.methods.getRepositoryNames().call()
+        .then((repoNames) => {
+          // and filter based on the search entered by the user
+          const filteredRepoNames = repoNames.filter((entry) => entry.toLowerCase()
+            .startsWith(userInput.toLowerCase()));
+          // TODO: overtime, we should go over all possible repositories and not only the first one
+          // get all user addresses who have a repository by the first name
+          return Promise.all([
+            this.$factoryContract.methods.getRepositoriesUserList(filteredRepoNames[0]).call(),
+            filteredRepoNames[0],
+          ]);
         })
-        .then(async (headCid) => {
-          const response = await fetch(
-            `${web3Config.IPFS_ADDRESS}/api/v0/dag/get?arg=${headCid}`,
-            {
-              method: 'POST',
-            },
-          );
-          const data = await response.json();
-          const files = [];
-          let status;
-          let responseSub;
-          // requesting the sub data in order to check if it is a directory or a file
-          for (let i = 0; i < data.links.length; i += 1) {
-            // eslint-disable-next-line no-await-in-loop
-            responseSub = await fetch(
-              `${web3Config.IPFS_ADDRESS}/api/v0/dag/get?arg=${data.links[i].Cid['/']}`,
-              {
-                method: 'POST',
-              },
-            );
-            // eslint-disable-next-line no-await-in-loop
-            status = await responseSub.json();
-            files.push({
-              name: `${data.links[i].Name}`,
-              type: (status.data === 'CAE=' ? 'Directory' : 'File'),
-            });
-          }
-
-          store.commit('updateFileList', files);
-          store.commit('updateRepoName', this.search);
-          store.commit('toggleCode');
-          store.commit('toggleLogo');
+        .then(([userList, filteredRepoName]) => {
+          // put the user address and the repository name together
+          this.items = userList.map((userAddress) => `${userAddress.substring(0, 6)}..
+${userAddress.substring(37)}/${filteredRepoName}`);
+        })
+        .catch(() => {
+          console.log('No findings');
         });
+    },
+  },
+  methods: {
+    searchFunction(event) {
+      console.log(event);
+      if (this.search.length < 3) return;
+      // get all repositry names there are
+      this.$factoryContract.methods.getRepositoryNames().call()
+        .then((repoNames) => {
+          // and filter based on the search entered by the user
+          const filteredRepoNames = repoNames.filter((entry) => entry.toLowerCase()
+            .startsWith(this.search.toLowerCase()));
+          // TODO: overtime, we should go over all possible repositories and not only the first one
+          // get all user addresses who have a repository by the first name
+          return Promise.all([
+            this.$factoryContract.methods.getRepositoriesUserList(filteredRepoNames[0]).call(),
+            filteredRepoNames[0],
+          ]);
+        })
+        .then(([userList, filteredRepoName]) => {
+          // put the user address and the repository name together
+          const searchResult = userList.map((userAddress) => `${userAddress.substring(0, 6)}..
+${userAddress.substring(37)}/${filteredRepoName}`);
+          console.log(searchResult);
+        });
+      // this.$factoryContract.methods.gitRepositories(this.search).call()
+      //   .then((address) => {
+      //     const repoContract = new this.$web3Matic.eth.Contract(
+      //       web3Config.REPOSITORY_INTERFACE, address,
+      //     );
+      //     return repoContract.methods.headCid().call();
+      //   })
+      //   .then(async (headCid) => {
+      //   const response = await fetch(
+      //     `${web3Config.IPFS_ADDRESS}/api/v0/dag/get?arg=${headCid}`,
+      //     {
+      //       method: 'POST',
+      //     },
+      //   );
+      //   const data = await response.json();
+      //   const files = [];
+      //   let status;
+      //   let responseSub;
+      //   // requesting the sub data in order to check if it is a directory or a file
+      //   for (let i = 0; i < data.links.length; i += 1) {
+      //     // eslint-disable-next-line no-await-in-loop
+      //     responseSub = await fetch(
+      //       `${web3Config.IPFS_ADDRESS}/api/v0/dag/get?arg=${data.links[i].Cid['/']}`,
+      //       {
+      //         method: 'POST',
+      //       },
+      //     );
+      //     // eslint-disable-next-line no-await-in-loop
+      //     status = await responseSub.json();
+      //     files.push({
+      //       name: `${data.links[i].Name}`,
+      //       type: (status.data === 'CAE=' ? 'Directory' : 'File'),
+      //     });
+      //   }
+      //   store.commit('updateFileList', files);
+      //   store.commit('updateRepoName', this.search);
+      //   store.commit('toggleCode');
+      //   store.commit('toggleLogo');
+      // });
     },
     async connectMetaMask() {
       let accounts = [];
       try {
-        accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        accounts = await window.ethereum.request({
+          method: 'eth_requestAccounts',
+        });
       } catch (e) {
         console.log('User rejects MetaMask connection');
       }
