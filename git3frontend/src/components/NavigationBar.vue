@@ -23,7 +23,17 @@
 <script>
 import store from '../store/index';
 
-// const web3Config = require('../lib/web3Config.js');
+const web3Config = require('../lib/web3Config.js');
+
+async function getDataFromIPFS(cid) {
+  const response = await fetch(
+    `${web3Config.IPFS_ADDRESS}/api/v0/cat?arg=${cid}`,
+    {
+      method: 'POST',
+    },
+  );
+  return response.json();
+}
 
 export default {
   name: 'NavigationBar',
@@ -37,8 +47,47 @@ export default {
     };
   },
   watch: {
+    model(val) {
+      // the user decided to pick an entry
+      if (val != null) {
+        const [partialUserAddress, repoName] = val.split('/');
+        const splittedPartialUserAddress = partialUserAddress.split('..');
+        // since we only have a partial entry of the address, we need to get all of them again
+        // and build it together
+        this.$factoryContract.methods.getRepositoriesUserList(repoName).call()
+          .then((userAddresses) => {
+            // eslint-disable-next-line max-len
+            const [userAddress] = userAddresses.filter((entry) => entry.startsWith(splittedPartialUserAddress[0])
+              && entry.endsWith(splittedPartialUserAddress[1].trim()));
+            return this.$factoryContract.methods.getUserRepoNameHash(userAddress, repoName).call();
+          })
+          .then((userRepoHash) => this.$factoryContract.methods.repositoryList(userRepoHash).call())
+          .then((repo) => {
+            const repoContract = new this.$web3Matic.eth.Contract(
+              web3Config.REPOSITORY_INTERFACE, repo.location,
+            );
+            return repoContract.methods.branches('main').call();
+          })
+          .then(async (branch) => {
+            const { headCid } = branch;
+            const commit = await getDataFromIPFS(headCid);
+            const tree = await getDataFromIPFS(commit.tree);
+            const files = [];
+            tree.entries.forEach((entry) => {
+              files.push({
+                name: entry.name,
+                type: (entry.mode === 16384 ? 'Directory' : 'File'),
+                cid: entry.cid,
+              });
+            });
+            store.commit('updateFileList', files);
+            store.commit('updateRepoName', this.search);
+            store.commit('toggleCode');
+            store.commit('toggleLogo');
+          });
+      }
+    },
     searchRepositories(userInput) {
-      console.log(userInput);
       if (userInput < 3 || userInput === undefined || userInput === null) return;
       // get all repositry names there are
       this.$factoryContract.methods.getRepositoryNames().call()
