@@ -2,12 +2,8 @@ module.exports = {
   GIT_FACTORY_ADDRESS: '0x3bFF586A6Cab36Bb87Da89df1d9578691e3328a1',
   RPC_ADDRESS: 'https://rpc-mumbai.matic.today',
   FACTORY_ENS_NAME: 'factory.git3.eth',
+  FACTORY_ADDRESS: '0x12aDc3F0dad279597CaE96B744A332004FAE2FeD',
   GIT_FACTORY_INTERFACE: [
-    {
-      inputs: [],
-      stateMutability: 'nonpayable',
-      type: 'constructor',
-    },
     {
       anonymous: false,
       inputs: [
@@ -20,12 +16,12 @@ module.exports = {
         },
         {
           indexed: false,
-          internalType: 'contract GitRepository',
-          name: 'Address',
+          internalType: 'address',
+          name: 'user',
           type: 'address',
         },
       ],
-      name: 'CreatedNewRepository',
+      name: 'NewRepositoryCreated',
       type: 'event',
     },
     {
@@ -51,8 +47,31 @@ module.exports = {
       inputs: [
         {
           internalType: 'string',
-          // eslint-disable-next-line no-restricted-globals
-          name,
+          name: '',
+          type: 'string',
+        },
+      ],
+      name: 'activeRepository',
+      outputs: [
+        {
+          internalType: 'bool',
+          name: 'isActive',
+          type: 'bool',
+        },
+        {
+          internalType: 'uint256',
+          name: 'index',
+          type: 'uint256',
+        },
+      ],
+      stateMutability: 'view',
+      type: 'function',
+    },
+    {
+      inputs: [
+        {
+          internalType: 'string',
+          name: '_repoName',
           type: 'string',
         },
       ],
@@ -65,16 +84,16 @@ module.exports = {
       inputs: [
         {
           internalType: 'string',
-          name: '',
+          name: '_repoName',
           type: 'string',
         },
       ],
-      name: 'gitRepositories',
+      name: 'getRepositoriesUserList',
       outputs: [
         {
-          internalType: 'contract GitRepository',
+          internalType: 'address[]',
           name: '',
-          type: 'address',
+          type: 'address[]',
         },
       ],
       stateMutability: 'view',
@@ -82,130 +101,50 @@ module.exports = {
     },
     {
       inputs: [],
-      name: 'owner',
+      name: 'getRepositoryNames',
       outputs: [
         {
-          internalType: 'address',
+          internalType: 'string[]',
           name: '',
-          type: 'address',
+          type: 'string[]',
         },
       ],
       stateMutability: 'view',
       type: 'function',
     },
     {
-      inputs: [],
-      name: 'renounceOwnership',
-      outputs: [],
-      stateMutability: 'nonpayable',
-      type: 'function',
-    },
-    {
       inputs: [
         {
           internalType: 'address',
-          name: 'newOwner',
+          name: '_owner',
           type: 'address',
         },
-      ],
-      name: 'transferOwnership',
-      outputs: [],
-      stateMutability: 'nonpayable',
-      type: 'function',
-    },
-  ],
-  REPOSITORY_INTERFACE: [
-    {
-      inputs: [
         {
           internalType: 'string',
-          // eslint-disable-next-line no-restricted-globals
-          name,
-          type: 'string',
-        },
-        {
-          internalType: 'address',
-          name: 'owner',
-          type: 'address',
-        },
-      ],
-      stateMutability: 'nonpayable',
-      type: 'constructor',
-    },
-    {
-      anonymous: false,
-      inputs: [
-        {
-          indexed: true,
-          internalType: 'address',
-          name: 'previousOwner',
-          type: 'address',
-        },
-        {
-          indexed: true,
-          internalType: 'address',
-          name: 'newOwner',
-          type: 'address',
-        },
-      ],
-      name: 'OwnershipTransferred',
-      type: 'event',
-    },
-    {
-      inputs: [
-        {
-          internalType: 'string',
-          name: 'newCid',
+          name: '_repoName',
           type: 'string',
         },
       ],
-      name: 'push',
-      outputs: [],
-      stateMutability: 'nonpayable',
-      type: 'function',
-    },
-    {
-      inputs: [],
-      name: 'renounceOwnership',
-      outputs: [],
-      stateMutability: 'nonpayable',
-      type: 'function',
-    },
-    {
-      inputs: [
-        {
-          internalType: 'address',
-          name: 'newOwner',
-          type: 'address',
-        },
-      ],
-      name: 'transferOwnership',
-      outputs: [],
-      stateMutability: 'nonpayable',
-      type: 'function',
-    },
-    {
-      inputs: [
-        {
-          internalType: 'uint256',
-          name: '',
-          type: 'uint256',
-        },
-      ],
-      name: 'cidHistory',
+      name: 'getUserRepoNameHash',
       outputs: [
         {
-          internalType: 'string',
+          internalType: 'bytes32',
           name: '',
-          type: 'string',
+          type: 'bytes32',
         },
       ],
-      stateMutability: 'view',
+      stateMutability: 'pure',
       type: 'function',
     },
     {
-      inputs: [],
-      name: 'getCidHistory',
+      inputs: [
+        {
+          internalType: 'address',
+          name: '_owner',
+          type: 'address',
+        },
+      ],
+      name: 'getUsersRepositories',
       outputs: [
         {
           internalType: 'string[]',
@@ -218,19 +157,6 @@ module.exports = {
     },
     {
       inputs: [],
-      name: 'headCid',
-      outputs: [
-        {
-          internalType: 'string',
-          name: '',
-          type: 'string',
-        },
-      ],
-      stateMutability: 'view',
-      type: 'function',
-    },
-    {
-      inputs: [],
       name: 'owner',
       outputs: [
         {
@@ -243,8 +169,103 @@ module.exports = {
       type: 'function',
     },
     {
+      inputs: [
+        {
+          internalType: 'address',
+          name: '_owner',
+          type: 'address',
+        },
+        {
+          internalType: 'string',
+          name: '_repoName',
+          type: 'string',
+        },
+        {
+          internalType: 'uint256',
+          name: '_userIndex',
+          type: 'uint256',
+        },
+        {
+          internalType: 'uint256',
+          name: '_repoIndex',
+          type: 'uint256',
+        },
+      ],
+      name: 'removeRepository',
+      outputs: [],
+      stateMutability: 'nonpayable',
+      type: 'function',
+    },
+    {
       inputs: [],
-      name: 'repoName',
+      name: 'renounceOwnership',
+      outputs: [],
+      stateMutability: 'nonpayable',
+      type: 'function',
+    },
+    {
+      inputs: [
+        {
+          internalType: 'string',
+          name: '',
+          type: 'string',
+        },
+        {
+          internalType: 'uint256',
+          name: '',
+          type: 'uint256',
+        },
+      ],
+      name: 'reposUserList',
+      outputs: [
+        {
+          internalType: 'address',
+          name: '',
+          type: 'address',
+        },
+      ],
+      stateMutability: 'view',
+      type: 'function',
+    },
+    {
+      inputs: [
+        {
+          internalType: 'bytes32',
+          name: '',
+          type: 'bytes32',
+        },
+      ],
+      name: 'repositoryList',
+      outputs: [
+        {
+          internalType: 'bool',
+          name: 'isActive',
+          type: 'bool',
+        },
+        {
+          internalType: 'string',
+          // eslint-disable-next-line no-restricted-globals
+          name,
+          type: 'string',
+        },
+        {
+          internalType: 'contract GitRepository',
+          name: 'location',
+          type: 'address',
+        },
+      ],
+      stateMutability: 'view',
+      type: 'function',
+    },
+    {
+      inputs: [
+        {
+          internalType: 'uint256',
+          name: '',
+          type: 'uint256',
+        },
+      ],
+      name: 'repositoryNames',
       outputs: [
         {
           internalType: 'string',
@@ -258,21 +279,72 @@ module.exports = {
     {
       inputs: [
         {
+          internalType: 'address',
+          name: 'newOwner',
+          type: 'address',
+        },
+      ],
+      name: 'transferOwnership',
+      outputs: [],
+      stateMutability: 'nonpayable',
+      type: 'function',
+    },
+    {
+      inputs: [
+        {
+          internalType: 'address',
+          name: '',
+          type: 'address',
+        },
+        {
+          internalType: 'uint256',
+          name: '',
+          type: 'uint256',
+        },
+      ],
+      name: 'usersRepoList',
+      outputs: [
+        {
           internalType: 'string',
           name: '',
           type: 'string',
         },
       ],
-      name: 'pushHistory',
-      outputs: [
-        {
-          internalType: 'bool',
-          name: '',
-          type: 'bool',
-        },
-      ],
       stateMutability: 'view',
       type: 'function',
+    },
+  ],
+  REPOSITORY_INTERFACE: [
+    {
+      inputs: [
+        {
+          internalType: 'address',
+          name: '_factory',
+          type: 'address',
+        },
+        {
+          internalType: 'string',
+          name: '_name',
+          type: 'string',
+        },
+        {
+          internalType: 'address',
+          name: '_owner',
+          type: 'address',
+        },
+        {
+          internalType: 'uint256',
+          name: '_userIndex',
+          type: 'uint256',
+        },
+        {
+          internalType: 'uint256',
+          name: '_repoIndex',
+          type: 'uint256',
+        },
+      ],
+      stateMutability: 'nonpayable',
+      type: 'constructor',
     },
     {
       anonymous: false,
@@ -293,6 +365,12 @@ module.exports = {
         {
           indexed: false,
           internalType: 'string',
+          name: 'branch',
+          type: 'string',
+        },
+        {
+          indexed: false,
+          internalType: 'string',
           name: 'Cid',
           type: 'string',
         },
@@ -301,21 +379,112 @@ module.exports = {
       type: 'event',
     },
     {
+      anonymous: false,
       inputs: [
         {
+          indexed: true,
+          internalType: 'address',
+          name: 'previousOwner',
+          type: 'address',
+        },
+        {
+          indexed: true,
+          internalType: 'address',
+          name: 'newOwner',
+          type: 'address',
+        },
+      ],
+      name: 'OwnershipTransferred',
+      type: 'event',
+    },
+    {
+      anonymous: false,
+      inputs: [
+        {
+          indexed: false,
+          internalType: 'uint256',
+          name: 'amount',
+          type: 'uint256',
+        },
+        {
+          indexed: false,
+          internalType: 'address',
+          name: 'tipper',
+          type: 'address',
+        },
+      ],
+      name: 'ReceivedTip',
+      type: 'event',
+    },
+    {
+      inputs: [
+        {
+          internalType: 'uint256',
+          name: '',
+          type: 'uint256',
+        },
+      ],
+      name: 'branchNames',
+      outputs: [
+        {
           internalType: 'string',
-          name: 'cid',
+          name: '',
           type: 'string',
         },
       ],
-      name: 'openIssue',
-      outputs: [],
-      stateMutability: 'payable',
+      stateMutability: 'view',
       type: 'function',
     },
     {
-      stateMutability: 'payable',
-      type: 'receive',
+      inputs: [
+        {
+          internalType: 'string',
+          name: '',
+          type: 'string',
+        },
+      ],
+      name: 'branches',
+      outputs: [
+        {
+          internalType: 'bool',
+          name: 'isActive',
+          type: 'bool',
+        },
+        {
+          internalType: 'string',
+          name: 'headCid',
+          type: 'string',
+        },
+      ],
+      stateMutability: 'view',
+      type: 'function',
+    },
+    {
+      inputs: [],
+      name: 'collectTips',
+      outputs: [],
+      stateMutability: 'nonpayable',
+      type: 'function',
+    },
+    {
+      inputs: [],
+      name: 'deleteRepository',
+      outputs: [],
+      stateMutability: 'nonpayable',
+      type: 'function',
+    },
+    {
+      inputs: [],
+      name: 'getBranchNames',
+      outputs: [
+        {
+          internalType: 'string[]',
+          name: '',
+          type: 'string[]',
+        },
+      ],
+      stateMutability: 'view',
+      type: 'function',
     },
     {
       inputs: [
@@ -340,6 +509,113 @@ module.exports = {
       ],
       stateMutability: 'view',
       type: 'function',
+    },
+    {
+      inputs: [],
+      name: 'owner',
+      outputs: [
+        {
+          internalType: 'address',
+          name: '',
+          type: 'address',
+        },
+      ],
+      stateMutability: 'view',
+      type: 'function',
+    },
+    {
+      inputs: [
+        {
+          internalType: 'string',
+          name: 'branch',
+          type: 'string',
+        },
+        {
+          internalType: 'string',
+          name: 'newCid',
+          type: 'string',
+        },
+      ],
+      name: 'push',
+      outputs: [],
+      stateMutability: 'nonpayable',
+      type: 'function',
+    },
+    {
+      inputs: [],
+      name: 'renounceOwnership',
+      outputs: [],
+      stateMutability: 'nonpayable',
+      type: 'function',
+    },
+    {
+      inputs: [],
+      name: 'repoName',
+      outputs: [
+        {
+          internalType: 'string',
+          name: '',
+          type: 'string',
+        },
+      ],
+      stateMutability: 'view',
+      type: 'function',
+    },
+    {
+      inputs: [],
+      name: 'tips',
+      outputs: [
+        {
+          internalType: 'uint256',
+          name: '',
+          type: 'uint256',
+        },
+      ],
+      stateMutability: 'view',
+      type: 'function',
+    },
+    {
+      inputs: [
+        {
+          internalType: 'address',
+          name: 'newOwner',
+          type: 'address',
+        },
+      ],
+      name: 'transferOwnership',
+      outputs: [],
+      stateMutability: 'nonpayable',
+      type: 'function',
+    },
+    {
+      inputs: [
+        {
+          internalType: 'uint256',
+          name: '_newRepoIndex',
+          type: 'uint256',
+        },
+      ],
+      name: 'updateRepoIndex',
+      outputs: [],
+      stateMutability: 'nonpayable',
+      type: 'function',
+    },
+    {
+      inputs: [
+        {
+          internalType: 'uint256',
+          name: '_newUserIndex',
+          type: 'uint256',
+        },
+      ],
+      name: 'updateUserIndex',
+      outputs: [],
+      stateMutability: 'nonpayable',
+      type: 'function',
+    },
+    {
+      stateMutability: 'payable',
+      type: 'receive',
     },
   ],
   IPFS_MULTIADDR: '/ip4/127.0.0.1/tcp/5001',
