@@ -38,7 +38,8 @@ export default {
   },
   watch: {
     searchRepositories(userInput) {
-      if (userInput < 3) return;
+      console.log(userInput);
+      if (userInput < 3 || userInput === undefined || userInput === null) return;
       // get all repositry names there are
       this.$factoryContract.methods.getRepositoryNames().call()
         .then((repoNames) => {
