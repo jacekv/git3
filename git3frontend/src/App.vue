@@ -12,7 +12,7 @@
         <v-row>
           <v-col v-if='fileExplorer || issues' cols='8' offset='2'>
             <FileExplorer v-if='fileExplorer' />
-            <IssueExplorer v-else-if='issues' />
+            <!-- <IssueExplorer v-else-if='issues' /> -->
           </v-col>
           <v-col v-if='logo' cols='8' offset='5'>
             <img src="@/assets/myLogo.png"/>
@@ -26,7 +26,7 @@
 <script>
 import NavigationBar from './components/NavigationBar.vue';
 import FileExplorer from './components/FileExplorer.vue';
-import IssueExplorer from './components/IssueExplorer.vue';
+// import IssueExplorer from './components/IssueExplorer.vue';
 import RepositoryHeader from './components/RepositoryHeader.vue';
 import store from './store/index';
 
@@ -37,7 +37,7 @@ export default {
     NavigationBar,
     FileExplorer,
     RepositoryHeader,
-    IssueExplorer,
+    // IssueExplorer,
   },
   data() {
     return {};
