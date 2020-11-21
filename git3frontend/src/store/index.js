@@ -7,6 +7,7 @@ export default new Vuex.Store({
   state: {
     fileList: [],
     repoName: 'Repository Name',
+    repoAddress: '',
     metamaskConnected: false,
     showLogo: true,
     showCode: false,
@@ -15,6 +16,7 @@ export default new Vuex.Store({
   getters: {
     getFileList: (state) => state.fileList,
     getRepoName: (state) => state.repoName,
+    getRepoAddress: (state) => state.repoAddress,
     isMetaMaskConnected: (state) => state.metamaskConnected,
     showLogo: (state) => state.showLogo,
     showCode: (state) => state.showCode,
@@ -37,6 +39,9 @@ export default new Vuex.Store({
     },
     updateRepoName(state, name) {
       state.repoName = name;
+    },
+    updateRepoAddress(state, address) {
+      state.repoAddress = address;
     },
     updateMetaMaskConnectionStatus(state, status) {
       state.metamaskConnected = status;

@@ -54,14 +54,14 @@
     <v-btn depressed v-if="repoLoaded" :outlined="showCode" @click="enableCode">
       /code
     </v-btn>
-    <v-btn
+    <!-- <v-btn
       depressed
       v-if="repoLoaded"
       :outlined="showIssues"
       @click="enableIssues"
     >
       /issues
-    </v-btn>
+    </v-btn> -->
   </v-app-bar>
 </template>
 
@@ -104,43 +104,20 @@ export default {
         });
     },
     tipping() {
-      this.$factoryContract.methods
-        .gitRepositories(store.getters.getRepoName)
-        .call()
-        .then((address) => {
-          console.log(address);
-          // const { networkVersion } = window.ethereum;
-          // if (networkVersion === '80001') {
-          //   console.log('We are on Matic :)');
-          //   return window.ethereum.request({
-          //     method: 'eth_sendTransaction',
-          //     params: [
-          //       {
-          //         from: window.ethereum.selectedAddress,
-          //         to: address,
-          //         value: (this.tip * 1000000000000000000).toString(16),
-          //         gasPrice: '0x12A05F2000',
-          //         gas: '21055',
-          //       },
-          //     ],
-          //   });
-          // } else if (networkVersion === '5') {
-          //   console.log('We are on Goerli :)');
-          // }
-          return window.ethereum.request({
-            method: 'eth_sendTransaction',
-            params: [
-              {
-                from: window.ethereum.selectedAddress,
-                to: address,
-                value: (this.tip * 1000000000000000000).toString(16),
-                gasPrice: '0x77359400', // 2 Gwei
-                gas: '0x523F', // 21055
-              },
-            ],
-          });
-        })
+      return window.ethereum.request({
+        method: 'eth_sendTransaction',
+        params: [
+          {
+            from: window.ethereum.selectedAddress,
+            to: store.getters.getRepoAddress,
+            value: (this.tip * 1000000000000000000).toString(16),
+            gasPrice: '0xB2D05E00', // 3 Gwei
+            gas: '0xAAE6', // 43750
+          },
+        ],
+      })
         .then((txHash) => {
+          console.log(txHash);
           this.dialog = false;
           this.pendingTx = true;
           this.checkTxConfirmed(txHash);
@@ -149,6 +126,33 @@ export default {
           );
         })
         .catch(() => console.error);
+      // this.$factoryContract.methods
+      //   .gitRepositories(store.getters.getRepoName)
+      //   .call()
+      //   .then((address) => {
+      //     console.log(address);
+      //     return window.ethereum.request({
+      //       method: 'eth_sendTransaction',
+      //       params: [
+      //         {
+      //           from: window.ethereum.selectedAddress,
+      //           to: address,
+      //           value: (this.tip * 1000000000000000000).toString(16),
+      //           gasPrice: '0x77359400', // 2 Gwei
+      //           gas: '0x523F', // 21055
+      //         },
+      //       ],
+      //     });
+      //   })
+      //   .then((txHash) => {
+      //     this.dialog = false;
+      //     this.pendingTx = true;
+      //     this.checkTxConfirmed(txHash);
+      //     console.log(
+      //       'While sending the tx, we need to distinguish between Goerli and Matic!',
+      //     );
+      //   })
+      //   .catch(() => console.error);
     },
     async checkTxConfirmed(txHash) {
       console.log('Checking tx status');

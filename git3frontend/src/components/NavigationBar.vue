@@ -66,6 +66,7 @@ export default {
             const repoContract = new this.$web3Matic.eth.Contract(
               web3Config.REPOSITORY_INTERFACE, repo.location,
             );
+            store.commit('updateRepoAddress', repo.location);
             return repoContract.methods.branches('main').call();
           })
           .then(async (branch) => {
@@ -81,7 +82,7 @@ export default {
               });
             });
             store.commit('updateFileList', files);
-            store.commit('updateRepoName', this.search);
+            store.commit('updateRepoName', val);
             store.commit('toggleCode');
             store.commit('toggleLogo');
           });
