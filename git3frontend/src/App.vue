@@ -20,6 +20,11 @@
         </v-row>
       </v-container>
     </v-main>
+
+    <v-footer>
+      <v-spacer/>
+      Powered by Matic
+    </v-footer>
   </v-app>
 </template>
 
