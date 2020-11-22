@@ -22,6 +22,9 @@
     </v-main>
 
     <v-footer>
+      <template v-if='repositoryLoaded'>
+        Tips: {{ tips }} Matic
+      </template>
       <v-spacer/>
       Powered by Matic
     </v-footer>
@@ -51,6 +54,8 @@ export default {
     logo: () => store.getters.showLogo,
     fileExplorer: () => store.getters.showCode,
     issues: () => store.getters.showIssues,
+    repositoryLoaded: () => store.getters.getRepositoryLoaded,
+    tips: () => store.getters.getTips,
   },
 };
 </script>

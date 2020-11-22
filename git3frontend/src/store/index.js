@@ -8,10 +8,12 @@ export default new Vuex.Store({
     fileList: [],
     repoName: 'Repository Name',
     repoAddress: '',
+    repositoryLoaded: false,
     metamaskConnected: false,
     showLogo: true,
     showCode: false,
     showIssues: false,
+    tips: 0,
   },
   getters: {
     getFileList: (state) => state.fileList,
@@ -21,6 +23,8 @@ export default new Vuex.Store({
     showLogo: (state) => state.showLogo,
     showCode: (state) => state.showCode,
     showIssues: (state) => state.showIssues,
+    getRepositoryLoaded: (state) => state.repositoryLoaded,
+    getTips: (state) => state.tips,
   },
   mutations: {
     updateFileList(state, files) {
@@ -37,8 +41,14 @@ export default new Vuex.Store({
         }
       }
     },
+    updateTips(state, tips) {
+      state.tips = tips;
+    },
     updateRepoName(state, name) {
       state.repoName = name;
+    },
+    updateRepositoryLoaded(state, value) {
+      state.repositoryLoaded = value;
     },
     updateRepoAddress(state, address) {
       state.repoAddress = address;

@@ -67,9 +67,9 @@ export default {
               web3Config.REPOSITORY_INTERFACE, repo.location,
             );
             store.commit('updateRepoAddress', repo.location);
-            return repoContract.methods.branches('main').call();
+            return Promise.all([repoContract.methods.branches('main').call(), repoContract.methods.tips().call()]);
           })
-          .then(async (branch) => {
+          .then(async ([branch, tips]) => {
             const { headCid } = branch;
             const commit = await getDataFromIPFS(headCid);
             const tree = await getDataFromIPFS(commit.tree);
@@ -83,6 +83,8 @@ export default {
             });
             store.commit('updateFileList', files);
             store.commit('updateRepoName', val);
+            store.commit('updateTips', tips / 10 ** 18);
+            store.commit('updateRepositoryLoaded', true);
             store.commit('toggleCode');
             store.commit('toggleLogo');
           });
