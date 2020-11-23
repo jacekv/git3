@@ -2,7 +2,7 @@ module.exports = {
   GIT_FACTORY_ADDRESS: '0x3bFF586A6Cab36Bb87Da89df1d9578691e3328a1',
   RPC_ADDRESS: 'https://rpc-mumbai.matic.today',
   FACTORY_ENS_NAME: 'factory.git3.eth',
-  FACTORY_ADDRESS: '0x12aDc3F0dad279597CaE96B744A332004FAE2FeD',
+  FACTORY_ADDRESS: '0xA30faFf4bBf01267c770bEF461b404Fd2b7d533e',
   GIT_FACTORY_INTERFACE: [
     {
       anonymous: false,

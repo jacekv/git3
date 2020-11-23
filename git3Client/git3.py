@@ -34,7 +34,7 @@ MUMBAI_GAS_STATION='https://gasstation-mumbai.matic.today'
 CHAINID=80001
 
 RPC_ADDRESS = 'https://rpc-mumbai.matic.today'
-GIT_FACTORY_ADDRESS = '0x12aDc3F0dad279597CaE96B744A332004FAE2FeD'
+GIT_FACTORY_ADDRESS = '0xA30faFf4bBf01267c770bEF461b404Fd2b7d533e'
 IPFS_CONNECTION = '/dns/ipfs.infura.io/tcp/5001/https'
 FACTORY_ABI = '''
 [
