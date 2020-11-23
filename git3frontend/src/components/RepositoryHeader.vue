@@ -126,33 +126,6 @@ export default {
           );
         })
         .catch(() => console.error);
-      // this.$factoryContract.methods
-      //   .gitRepositories(store.getters.getRepoName)
-      //   .call()
-      //   .then((address) => {
-      //     console.log(address);
-      //     return window.ethereum.request({
-      //       method: 'eth_sendTransaction',
-      //       params: [
-      //         {
-      //           from: window.ethereum.selectedAddress,
-      //           to: address,
-      //           value: (this.tip * 1000000000000000000).toString(16),
-      //           gasPrice: '0x77359400', // 2 Gwei
-      //           gas: '0x523F', // 21055
-      //         },
-      //       ],
-      //     });
-      //   })
-      //   .then((txHash) => {
-      //     this.dialog = false;
-      //     this.pendingTx = true;
-      //     this.checkTxConfirmed(txHash);
-      //     console.log(
-      //       'While sending the tx, we need to distinguish between Goerli and Matic!',
-      //     );
-      //   })
-      //   .catch(() => console.error);
     },
     async checkTxConfirmed(txHash) {
       console.log('Checking tx status');
@@ -165,6 +138,14 @@ export default {
         if (receipt !== null) {
           if (receipt.status) {
             console.log('Transaction has been successful');
+            // update tip
+            const repoAddress = store.getters.getRepoAddress;
+            const repoContract = new this.$web3Matic.eth.Contract(
+              web3Config.REPOSITORY_INTERFACE, repoAddress,
+            );
+            // eslint-disable-next-line no-await-in-loop
+            const tips = await repoContract.methods.tips().call();
+            store.commit('updateTips', tips / 10 ** 18);
           } else {
             console.log('Transaction has been reverted...');
           }

@@ -67,9 +67,13 @@ export default {
               web3Config.REPOSITORY_INTERFACE, repo.location,
             );
             store.commit('updateRepoAddress', repo.location);
-            return Promise.all([repoContract.methods.branches('main').call(), repoContract.methods.tips().call()]);
+            return Promise.all([
+              repoContract.methods.branches('main').call(),
+              repoContract.methods.tips().call(),
+              repoContract.methods.owner().call(),
+            ]);
           })
-          .then(async ([branch, tips]) => {
+          .then(async ([branch, tips, owner]) => {
             const { headCid } = branch;
             const commit = await getDataFromIPFS(headCid);
             const tree = await getDataFromIPFS(commit.tree);
@@ -81,6 +85,7 @@ export default {
                 cid: entry.cid,
               });
             });
+            store.commit('updateRepoOwnerAddress', owner);
             store.commit('updateFileList', files);
             store.commit('updateRepoName', val);
             store.commit('updateTips', tips / 10 ** 18);
@@ -116,68 +121,6 @@ ${userAddress.substring(37)}/${filteredRepoName}`);
     },
   },
   methods: {
-    searchFunction(event) {
-      console.log(event);
-      if (this.search.length < 3) return;
-      // get all repositry names there are
-      this.$factoryContract.methods.getRepositoryNames().call()
-        .then((repoNames) => {
-          // and filter based on the search entered by the user
-          const filteredRepoNames = repoNames.filter((entry) => entry.toLowerCase()
-            .startsWith(this.search.toLowerCase()));
-          // TODO: overtime, we should go over all possible repositories and not only the first one
-          // get all user addresses who have a repository by the first name
-          return Promise.all([
-            this.$factoryContract.methods.getRepositoriesUserList(filteredRepoNames[0]).call(),
-            filteredRepoNames[0],
-          ]);
-        })
-        .then(([userList, filteredRepoName]) => {
-          // put the user address and the repository name together
-          const searchResult = userList.map((userAddress) => `${userAddress.substring(0, 6)}..
-${userAddress.substring(37)}/${filteredRepoName}`);
-          console.log(searchResult);
-        });
-      // this.$factoryContract.methods.gitRepositories(this.search).call()
-      //   .then((address) => {
-      //     const repoContract = new this.$web3Matic.eth.Contract(
-      //       web3Config.REPOSITORY_INTERFACE, address,
-      //     );
-      //     return repoContract.methods.headCid().call();
-      //   })
-      //   .then(async (headCid) => {
-      //   const response = await fetch(
-      //     `${web3Config.IPFS_ADDRESS}/api/v0/dag/get?arg=${headCid}`,
-      //     {
-      //       method: 'POST',
-      //     },
-      //   );
-      //   const data = await response.json();
-      //   const files = [];
-      //   let status;
-      //   let responseSub;
-      //   // requesting the sub data in order to check if it is a directory or a file
-      //   for (let i = 0; i < data.links.length; i += 1) {
-      //     // eslint-disable-next-line no-await-in-loop
-      //     responseSub = await fetch(
-      //       `${web3Config.IPFS_ADDRESS}/api/v0/dag/get?arg=${data.links[i].Cid['/']}`,
-      //       {
-      //         method: 'POST',
-      //       },
-      //     );
-      //     // eslint-disable-next-line no-await-in-loop
-      //     status = await responseSub.json();
-      //     files.push({
-      //       name: `${data.links[i].Name}`,
-      //       type: (status.data === 'CAE=' ? 'Directory' : 'File'),
-      //     });
-      //   }
-      //   store.commit('updateFileList', files);
-      //   store.commit('updateRepoName', this.search);
-      //   store.commit('toggleCode');
-      //   store.commit('toggleLogo');
-      // });
-    },
     async connectMetaMask() {
       let accounts = [];
       try {
@@ -188,7 +131,9 @@ ${userAddress.substring(37)}/${filteredRepoName}`);
         console.log('User rejects MetaMask connection');
       }
       if (accounts.length === 0) return;
+      console.log('Address is', accounts);
       store.commit('updateMetaMaskConnectionStatus', true);
+      store.commit('updateMetaMaskAddress', accounts[0]);
       [this.buttonText] = accounts;
       this.buttonText = `${this.buttonText.substring(0, 6)}..${this.buttonText.substring(37)}`;
     },
