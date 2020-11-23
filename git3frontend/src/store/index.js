@@ -8,8 +8,10 @@ export default new Vuex.Store({
     fileList: [],
     repoName: 'Repository Name',
     repoAddress: '',
+    repoOwnerAddress: '',
     repositoryLoaded: false,
     metamaskConnected: false,
+    metamaskAddress: '',
     showLogo: true,
     showCode: false,
     showIssues: false,
@@ -19,7 +21,9 @@ export default new Vuex.Store({
     getFileList: (state) => state.fileList,
     getRepoName: (state) => state.repoName,
     getRepoAddress: (state) => state.repoAddress,
+    getRepoOwnerAddress: (state) => state.repoOwnerAddress,
     isMetaMaskConnected: (state) => state.metamaskConnected,
+    getMetaMaskAddress: (state) => state.metamaskAddress,
     showLogo: (state) => state.showLogo,
     showCode: (state) => state.showCode,
     showIssues: (state) => state.showIssues,
@@ -44,8 +48,14 @@ export default new Vuex.Store({
     updateTips(state, tips) {
       state.tips = tips;
     },
+    updateRepoOwnerAddress(state, address) {
+      state.repoOwnerAddress = address;
+    },
     updateRepoName(state, name) {
       state.repoName = name;
+    },
+    updateMetaMaskAddress(state, address) {
+      state.metamaskAddress = address;
     },
     updateRepositoryLoaded(state, value) {
       state.repositoryLoaded = value;
