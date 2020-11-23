@@ -314,8 +314,8 @@ contract GitRepository is Ownable {
      * Function to collect the tips.
      */
     function collectTips() public onlyOwner {
-        tips = 0;
         payable(owner()).transfer(tips);
+        tips = 0;
     }
     
     /**
