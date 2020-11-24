@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Implement just enough git to commit and push to GitHub.
 
 Read the story here: http://benhoyt.com/writings/pygit/
@@ -31,11 +32,16 @@ GIT_NORMAL_FILE_MODE = 33188
 GIT_TREE_MODE = 16384
 
 MUMBAI_GAS_STATION='https://gasstation-mumbai.matic.today'
-CHAINID=80001
+# this is mumbai testnet
+# CHAINID=80001
+# this is matic mainnet
+CHAINID=137
 
-RPC_ADDRESS = 'https://rpc-mumbai.matic.today'
+#RPC_ADDRESS = 'https://rpc-mumbai.matic.today'
+RPC_ADDRESS = 'https://rpc-mainnet.maticvigil.com/v1/f632570838c8d7c5e5c508c6f24a0e23eabac8c7'
+
 GIT_FACTORY_ADDRESS = '0xA30faFf4bBf01267c770bEF461b404Fd2b7d533e'
-IPFS_CONNECTION = '/dns/ipfs.infura.io/tcp/5001/https'
+IPFS_CONNECTION = '/dns4/ipfs.infura.io/tcp/5001/https'
 FACTORY_ABI = '''
 [
 	{
@@ -812,7 +818,11 @@ def __get_value_from_config_file(key):
     if not os.path.isfile(config_path):
         # if not, use the global config file
         config_path = '~/.gitconfig'
-    content = read_file(os.path.expanduser(config_path))
+    try:
+        content = read_file(os.path.expanduser(config_path))
+    except FileNotFoundError:
+        print('No config file found. Please setup a local config or ~/.gitconfig file.')
+        sys.exit(1)
     splitted_config = content.decode().split('\n')
     user = False
     for entry in splitted_config:
@@ -830,8 +840,6 @@ def __read_private_key():
     """
     Reads the private key from a (ebcrypted) pem file and returns it
     """
-    # TODO: this is temp and has to be removed later
-    #return os.environ['PRIV_KEY']
     identity_file_path = __get_value_from_config_file('IdentityFile')
     content = read_file(os.path.expanduser(identity_file_path))
     password = ''
@@ -905,7 +913,7 @@ def create():
 def get_web3_provider():
     """
     Returns a web3 provider.
-    """
+    """    
     return Web3(Web3.HTTPProvider(RPC_ADDRESS))
 
 def get_remote_cid_history():
@@ -2119,7 +2127,8 @@ def close_to_infura():
     global client
     client.close()
 
-if __name__ == '__main__':
+# if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser()
     sub_parsers = parser.add_subparsers(dest='command', metavar='command')
     sub_parsers.required = True
@@ -2250,3 +2259,6 @@ if __name__ == '__main__':
         status()
     else:
         assert False, 'unexpected command {!r}'.format(args.command)
+
+if __name__ == '__main__':
+    main()
