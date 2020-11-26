@@ -1,2 +1,2 @@
-Address of contract in Matic Network: 
-0xE22C433F6AA86fb5262a64365AEEa17e897E7A9b
+Address of GitFactory contract on Matic Mainnet
+0x5DD6E7D5F20a3ae586cFf4a03A54e51c32F02541

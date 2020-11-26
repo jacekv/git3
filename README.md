@@ -76,3 +76,10 @@ In order to download the remote state, use `git3 fetch`.
 
 ## Git merge
 If you want to merge the state after doing a fetch, just use `git3 merge`. It will take the reference from the fetch.
+
+
+
+## The very first mainnet repo
+
+User address: `0x0539E6a1093a359C5720d053DB5e3D277F1762B6`
+Repository name: `firstMainNetRepo`

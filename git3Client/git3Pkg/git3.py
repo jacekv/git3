@@ -31,16 +31,18 @@ IndexEntry = collections.namedtuple('IndexEntry', [
 GIT_NORMAL_FILE_MODE = 33188
 GIT_TREE_MODE = 16384
 
+
 MUMBAI_GAS_STATION='https://gasstation-mumbai.matic.today'
 # this is mumbai testnet
 # CHAINID=80001
+# RPC_ADDRESS = 'https://rpc-mumbai.matic.today'
+# GIT_FACTORY_ADDRESS = '0x6AB62795EC9BD442461319E2113d21c1Ba278a71'
+
 # this is matic mainnet
 CHAINID=137
-
-#RPC_ADDRESS = 'https://rpc-mumbai.matic.today'
 RPC_ADDRESS = 'https://rpc-mainnet.maticvigil.com/v1/f632570838c8d7c5e5c508c6f24a0e23eabac8c7'
+GIT_FACTORY_ADDRESS = '0x5DD6E7D5F20a3ae586cFf4a03A54e51c32F02541'
 
-GIT_FACTORY_ADDRESS = '0xA30faFf4bBf01267c770bEF461b404Fd2b7d533e'
 IPFS_CONNECTION = '/dns4/ipfs.infura.io/tcp/5001/https'
 FACTORY_ABI = '''
 [
@@ -104,6 +106,13 @@ FACTORY_ABI = '''
 			}
 		],
 		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "collectTips",
+		"outputs": [],
+		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
@@ -315,6 +324,19 @@ FACTORY_ABI = '''
 		"type": "function"
 	},
 	{
+		"inputs": [],
+		"name": "tips",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
 		"inputs": [
 			{
 				"internalType": "address",
@@ -350,6 +372,10 @@ FACTORY_ABI = '''
 		],
 		"stateMutability": "view",
 		"type": "function"
+	},
+	{
+		"stateMutability": "payable",
+		"type": "receive"
 	}
 ]
 '''
@@ -359,7 +385,7 @@ REPOSITORY_ABI = '''
 	{
 		"inputs": [
 			{
-				"internalType": "address",
+				"internalType": "contract GitFactory",
 				"name": "_factory",
 				"type": "address"
 			},
@@ -512,6 +538,19 @@ REPOSITORY_ABI = '''
 		"name": "deleteRepository",
 		"outputs": [],
 		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "factory",
+		"outputs": [
+			{
+				"internalType": "contract GitFactory",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
 		"type": "function"
 	},
 	{
@@ -884,7 +923,7 @@ def create():
     #TODO: before creating tx and so on, check if this kind of repo exits already :)
     user_address = __get_user_dlt_address()
     nonce = w3.eth.getTransactionCount(user_address)
-
+    print('User address', user_address)
     gas_price = __get_current_gas_price()
     # get current gas price
     print('Preparing transaction to create repository {}'.format(repo_name))

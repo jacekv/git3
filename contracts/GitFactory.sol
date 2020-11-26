@@ -3,12 +3,6 @@ pragma experimental ABIEncoderV2;
 
 import "github.com/OpenZeppelin/openzeppelin-solidity/contracts/access/Ownable.sol";
 
-/**
- * Lots of work went into this contracts, but htey are becmoning to big. Once there is more time, we will have 
- * to change the architecture to proxies, who are holding the data and libraries executing the code or something
- * like that.
- */
-
 contract GitFactory is Ownable {
     event NewRepositoryCreated(string name, address user);
     
@@ -23,6 +17,8 @@ contract GitFactory is Ownable {
         uint256 index;
     }
 
+    uint256 public tips;
+    
     // mapps from a bytes32 to a repository contract
     // The bytes32 key is the hash over the owner's address and 
     // the repository name
@@ -65,7 +61,7 @@ contract GitFactory is Ownable {
         
         // if not, we deploy it
         GitRepository newGitRepo = new GitRepository(
-            address(this),
+            this,
             _repoName,
             msg.sender,
             reposUserList[_repoName].length,
@@ -164,6 +160,11 @@ contract GitFactory is Ownable {
         repositoryList[key].isActive = false;
     }
     
+    function collectTips() public onlyOwner {
+        payable(owner()).transfer(tips * 99 / 100);
+        tips = 0;
+    }
+    
     /**
      * Return an array containing all active repository names.
      * 
@@ -206,7 +207,15 @@ contract GitFactory is Ownable {
     function getUserRepoNameHash(address _owner, string memory _repoName) pure public returns (bytes32) {
         return keccak256(abi.encode(_owner, _repoName));
     }
+    
+    /**
+     * Receive function in order to receive tips. No calldata is set
+     */
+    receive() external payable {
+        tips += msg.value;
+    }
 }
+
 
 contract GitRepository is Ownable {
     event NewPush(string branch, string Cid);
@@ -223,7 +232,7 @@ contract GitRepository is Ownable {
         uint bounty;
     }
     
-    address private factory;
+    GitFactory public factory;
     
     // repository name
     string public repoName;
@@ -250,8 +259,8 @@ contract GitRepository is Ownable {
      * @param _userIndex (uint) - The index of the owner entry in the GitFactory reposUserList.users array
      * @param _repoIndex (uint) - The index of the repository in the GitFacotry usersRepoList array
      */
-    constructor (address _factory, string memory _name, address _owner, uint _userIndex, uint _repoIndex) public {
-        factory = _factory;
+    constructor (GitFactory _factory, string memory _name, address _owner, uint _userIndex, uint _repoIndex) public {
+        factory = GitFactory(_factory);
         repoName = _name;
         transferOwnership(_owner);
         userIndex = _userIndex;
@@ -314,7 +323,11 @@ contract GitRepository is Ownable {
      * Function to collect the tips.
      */
     function collectTips() public onlyOwner {
-        payable(owner()).transfer(tips);
+        // 1% goes to the factory
+        (bool success, ) = address(factory).call{value: tips / 100, gas: 19000}('');
+        require(success);
+        // 99% to the owner
+        payable(owner()).transfer(tips * 99 / 100);
         tips = 0;
     }
     
@@ -322,18 +335,18 @@ contract GitRepository is Ownable {
      * Used to delete the repository
      */
     function deleteRepository() public onlyOwner {
-        GitFactory f = GitFactory(factory);
-        f.removeRepository(owner(), repoName, userIndex, repoIndex);
+        // GitFactory f = GitFactory(payable(factory));
+        factory.removeRepository(owner(), repoName, userIndex, repoIndex);
         selfdestruct(payable(owner()));
     }
     
     function updateUserIndex(uint256 _newUserIndex) public {
-        require(msg.sender == factory, 'You are not allowd to perform this action');
+        require(msg.sender == address(factory), 'You are not allowd to perform this action');
         userIndex = _newUserIndex;
     }
     
     function updateRepoIndex(uint256 _newRepoIndex) public {
-        require(msg.sender == factory, 'You are not allowd to perform this action');
+        require(msg.sender == address(factory), 'You are not allowd to perform this action');
         repoIndex = _newRepoIndex;
     }
     
