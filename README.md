@@ -83,3 +83,6 @@ If you want to merge the state after doing a fetch, just use `git3 merge`. It wi
 
 User address: `0x0539E6a1093a359C5720d053DB5e3D277F1762B6`
 Repository name: `firstMainNetRepo`
+
+To install: `pip3 install git3-client`
+To clone it: `git3 clone 0x0539E6a1093a359C5720d053DB5e3D277F1762B6/girstMainNetRepo`

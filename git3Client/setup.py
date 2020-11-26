@@ -1,6 +1,6 @@
 from setuptools import setup
  
-readme = open('../README.md', 'r')
+readme = open('README.md', 'r')
 content = readme.read()
 readme.close()
  
@@ -10,7 +10,7 @@ setup(
     entry_points = {
         "console_scripts": ['git3 = git3Pkg.git3:main']
     },
-    version = "0.1.3",
+    version = "0.1.5",
     description = "Git3 Python client",
     long_description = content,
     long_description_content_type="text/markdown",
